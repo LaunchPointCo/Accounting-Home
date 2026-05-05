@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Accounting Cash Budget Calculator</title>
   
+  <style>
+    /* Hide HTML5 number input spin buttons to prevent overlap with % signs */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+  </style>
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
@@ -200,9 +212,9 @@
               name={name}
               value={inputs[name]}
               onChange={handleInputChange}
-              className={`w-28 pl-${!isPercent ? '6' : '3'} pr-3 py-1.5 border-2 border-blue-300 bg-blue-50/30 rounded-md shadow-[0_0_8px_rgba(59,130,246,0.3)] outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right text-sm font-semibold text-blue-900 transition-all`}
+              className={`w-28 pl-${!isPercent ? '6' : '3'} ${isPercent ? 'pr-7' : 'pr-3'} py-1.5 border-2 border-blue-300 bg-blue-50/30 rounded-md shadow-[0_0_8px_rgba(59,130,246,0.3)] outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right text-sm font-semibold text-blue-900 transition-all`}
             />
-            {isPercent && <span className="absolute right-3 top-2 text-blue-500 font-semibold">%</span>}
+            {isPercent && <span className="absolute right-2 top-2 text-blue-500 font-semibold">%</span>}
           </div>
         </div>
       );
