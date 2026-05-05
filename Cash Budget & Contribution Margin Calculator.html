@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Budget Calculator</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel to compile JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        // Inline Icons (replacing lucide-react imports for standalone HTML)
+        const CalculatorIcon = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16.01" y1="10" y2="10"/><line x1="16" x2="16.01" y1="14" y2="14"/><line x1="16" x2="16.01" y1="18" y2="18"/><line x1="8" x2="8.01" y1="10" y2="10"/><line x1="8" x2="8.01" y1="14" y2="14"/><line x1="8" x2="8.01" y1="18" y2="18"/><line x1="12" x2="12.01" y1="10" y2="10"/><line x1="12" x2="12.01" y1="14" y2="14"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+        );
+        const PieChartIcon = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+        );
+        const ActivityIcon = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        );
+        const AlertCircleIcon = ({ size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        );
+
+        const InputField = ({ label, value, onChange, prefix = "", suffix = "", type = "number" }) => (
+            <div className="flex flex-col mb-3">
+                <label className="text-xs font-semibold text-gray-600 mb-1">{label}</label>
+                <div className="relative">
+                {prefix && <span className="absolute left-3 top-2 text-gray-500">{prefix}</span>}
+                <input
+                    type={type}
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className={`w-full bg-white border border-gray-300 rounded-md py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-7' : ''}`}
+                />
+                {suffix && <span className="absolute right-3 top-2 text-gray-500">{suffix}</span>}
+                </div>
+            </div>
+        );
+
+        function App() {
+            // Pre-filled with empty strings for future use
+            const [inputs, setInputs] = useState({
+                prodUnits: '',
+                salesUnits: '',
+                price: '',
+                creditSalesPct: '',
+                creditCollectedPct: '',
+                dmPerUnit: '',
+                dlPerUnit: '',
+                salesCostPerUnit: '',
+                varCostsPaidPct: '',
+                mfgSalaries: '',
+                factoryRent: '',
+                machineryDepr: '',
+                sgaCosts: '',
+                equipPurchase: '',
+                begCash: '',
+                minCash: '',
+                borrowRate: '',
+                borrowIncrement: ''
+            });
+
+            const handleChange = (key, value) => {
+                setInputs(prev => ({ ...prev, [key]: value }));
+            };
+
+            // Perform calculations
+            const results = useMemo(() => {
+                // Convert inputs to numbers safely for calculations, treating empty strings as 0
+                const vals = Object.keys(inputs).reduce((acc, key) => {
+                    acc[key] = Number(inputs[key]) || 0;
+                    return acc;
+                }, {});
+                
+                // Prevent division by zero for borrow increment
+                if (vals.borrowIncrement === 0) vals.borrowIncrement = 1;
+
+                // 1. Receipts
+                const totalSales = vals.salesUnits * vals.price;
+                const cashSalesPct = 100 - vals.creditSalesPct;
+                const cashSales = totalSales * (cashSalesPct / 100);
+                const creditSales = totalSales * (vals.creditSalesPct / 100);
+                const creditCollected = creditSales * (vals.creditCollectedPct / 100);
+                const cashReceipts = cashSales + creditCollected;
+
+                // 2. Available Cash
+                const availableCash = vals.begCash + cashReceipts;
+
+                // 3. Variable Disbursements
+                const prodVarCosts = vals.prodUnits * (vals.dmPerUnit + vals.dlPerUnit);
+                const salesVarCosts = vals.salesUnits * vals.salesCostPerUnit;
+                const totalVarCostsIncurred = prodVarCosts + salesVarCosts;
+                const varCashDisbursements = totalVarCostsIncurred * (vals.varCostsPaidPct / 100);
+
+                // 4. Total Disbursements
+                const fixedCashDisbursements = vals.mfgSalaries + vals.factoryRent + vals.sgaCosts; // Exclude Depreciation
+                const totalDisbursements = varCashDisbursements + fixedCashDisbursements + vals.equipPurchase;
+
+                // 5. End Cash Before Financing
+                const endCashBeforeFin = availableCash - totalDisbursements;
+
+                // 6. Borrowing Needed
+                let borrowingNeeded = 0;
+                if (endCashBeforeFin < vals.minCash) {
+                    const shortfall = vals.minCash - endCashBeforeFin;
+                    borrowingNeeded = Math.ceil(shortfall / vals.borrowIncrement) * vals.borrowIncrement;
+                }
+
+                // 7. Cost of Interest
+                const interestCost = borrowingNeeded * (vals.borrowRate / 100) / 12;
+
+                // 8. Net Cash Flow
+                const netCashFlow = cashReceipts - totalDisbursements;
+
+                // 9. Net Income (Contribution Margin)
+                const cogsVar = vals.salesUnits * (vals.dmPerUnit + vals.dlPerUnit);
+                const salesExpVar = vals.salesUnits * vals.salesCostPerUnit;
+                const totalVarExp = cogsVar + salesExpVar;
+                const contributionMargin = totalSales - totalVarExp;
+                const totalFixedExp = vals.mfgSalaries + vals.factoryRent + vals.machineryDepr + vals.sgaCosts;
+                const netIncome = contributionMargin - totalFixedExp;
+
+                // 10. Difference between NI and CF
+                const differenceNiCf = Math.abs(netIncome - netCashFlow);
+
+                // 11. Largest Difference Component
+                const arDiff = creditSales - creditCollected; // Uncollected Credit Sales
+                const inventoryDiff = (vals.prodUnits - vals.salesUnits) * (vals.dmPerUnit + vals.dlPerUnit); // Inventory build up
+                const apDiff = totalVarCostsIncurred - varCashDisbursements; // Unpaid variable costs
+                const deprDiff = vals.machineryDepr;
+                const equipDiff = vals.equipPurchase;
+
+                const diffArray = [
+                    { name: "Uncollected Credit Sales (Increase in Accounts Receivable)", value: arDiff },
+                    { name: "Unsold Produced Units (Increase in Inventory)", value: inventoryDiff },
+                    { name: "Unpaid Variable Costs (Increase in Accounts Payable)", value: apDiff },
+                    { name: "Machinery Depreciation (Non-cash expense)", value: deprDiff },
+                    { name: "Equipment Purchase (Capital expenditure)", value: equipDiff }
+                ];
+                
+                // Find item with largest absolute impact
+                const largestItem = diffArray.reduce((prev, current) => 
+                    (Math.abs(prev.value) > Math.abs(current.value)) ? prev : current
+                );
+
+                return {
+                    cashReceipts,
+                    availableCash,
+                    varCashDisbursements,
+                    totalDisbursements,
+                    endCashBeforeFin,
+                    borrowingNeeded,
+                    interestCost,
+                    netCashFlow,
+                    netIncome,
+                    differenceNiCf,
+                    largestItem
+                };
+            }, [inputs]);
+
+            const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+
+            return (
+                <div className="min-h-screen bg-gray-50 text-gray-800 font-sans p-4 md:p-8">
+                    <div className="max-w-6xl mx-auto space-y-6">
+                        
+                        {/* Header */}
+                        <div className="bg-blue-900 rounded-xl p-6 shadow-lg text-white flex items-center gap-4">
+                            <div className="p-3 bg-blue-800 rounded-lg">
+                                <CalculatorIcon size={32} />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-bold">Cash Budget & Contribution Margin Calculator</h1>
+                                <p className="text-blue-200 mt-1">Change any input below to instantly recalculate all 11 requirements.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid md:grid-cols-12 gap-6">
+                            
+                            {/* Left Column: Inputs */}
+                            <div className="md:col-span-4 bg-white rounded-xl shadow-md p-5 border border-gray-100 max-h-[80vh] overflow-y-auto">
+                                <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
+                                    <ActivityIcon size={18} className="text-blue-600"/> Data Inputs
+                                </h2>
+
+                                <div className="space-y-6">
+                                    <section>
+                                        <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3">Sales & Production</h3>
+                                        <InputField label="Planned Production (Units)" value={inputs.prodUnits} onChange={(v) => handleChange('prodUnits', v)} />
+                                        <InputField label="Planned Sales (Units)" value={inputs.salesUnits} onChange={(v) => handleChange('salesUnits', v)} />
+                                        <InputField label="Sales Price per Unit" prefix="$" value={inputs.price} onChange={(v) => handleChange('price', v)} />
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3">Collections</h3>
+                                        <InputField label="Credit Sales %" suffix="%" value={inputs.creditSalesPct} onChange={(v) => handleChange('creditSalesPct', v)} />
+                                        <p className="text-xs text-gray-500 mb-2 italic">Cash sales auto-calculates to {100 - inputs.creditSalesPct || 100}%</p>
+                                        <InputField label="Credit Collected Current Month" suffix="%" value={inputs.creditCollectedPct} onChange={(v) => handleChange('creditCollectedPct', v)} />
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3">Variable Costs (Per Unit)</h3>
+                                        <InputField label="Direct Material" prefix="$" value={inputs.dmPerUnit} onChange={(v) => handleChange('dmPerUnit', v)} />
+                                        <InputField label="Direct Labor" prefix="$" value={inputs.dlPerUnit} onChange={(v) => handleChange('dlPerUnit', v)} />
+                                        <InputField label="Sales Related Costs" prefix="$" value={inputs.salesCostPerUnit} onChange={(v) => handleChange('salesCostPerUnit', v)} />
+                                        <InputField label="Variable Costs Paid in Month" suffix="%" value={inputs.varCostsPaidPct} onChange={(v) => handleChange('varCostsPaidPct', v)} />
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3">Fixed Monthly Costs</h3>
+                                        <InputField label="Manufacturing Salaries" prefix="$" value={inputs.mfgSalaries} onChange={(v) => handleChange('mfgSalaries', v)} />
+                                        <InputField label="Factory Rent" prefix="$" value={inputs.factoryRent} onChange={(v) => handleChange('factoryRent', v)} />
+                                        <InputField label="Machinery Depreciation" prefix="$" value={inputs.machineryDepr} onChange={(v) => handleChange('machineryDepr', v)} />
+                                        <InputField label="SGA Costs" prefix="$" value={inputs.sgaCosts} onChange={(v) => handleChange('sgaCosts', v)} />
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-sm font-bold text-blue-700 uppercase tracking-wider mb-3">Capital & Financing</h3>
+                                        <InputField label="New Equipment Purchase" prefix="$" value={inputs.equipPurchase} onChange={(v) => handleChange('equipPurchase', v)} />
+                                        <InputField label="Beginning Cash Balance" prefix="$" value={inputs.begCash} onChange={(v) => handleChange('begCash', v)} />
+                                        <InputField label="Minimum Cash Required" prefix="$" value={inputs.minCash} onChange={(v) => handleChange('minCash', v)} />
+                                        <InputField label="Bank Borrowing Rate (Annual)" suffix="%" value={inputs.borrowRate} onChange={(v) => handleChange('borrowRate', v)} />
+                                        <InputField label="Borrowing Increment" prefix="$" value={inputs.borrowIncrement} onChange={(v) => handleChange('borrowIncrement', v)} />
+                                    </section>
+                                </div>
+                            </div>
+
+                            {/* Right Column: Answers */}
+                            <div className="md:col-span-8 space-y-4">
+                                
+                                <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                                    <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center gap-2">
+                                        <PieChartIcon size={22} className="text-blue-600"/> Calculated Answers
+                                    </h2>
+
+                                    <div className="space-y-4">
+                                        
+                                        {/* Q1 */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                                            <div>
+                                                <span className="font-bold text-blue-600 mr-2">1.</span>
+                                                <span className="text-gray-700 font-medium">Budgeted Cash Receipts</span>
+                                            </div>
+                                            <div className="text-lg font-bold text-green-700">{formatCurrency(results.cashReceipts)}</div>
+                                        </div>
+
+                                        {/* Q2 */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                                            <div>
+                                                <span className="font-bold text-blue-600 mr-2">2.</span>
+                                                <span className="text-gray-700 font-medium">Budgeted Available Cash</span>
+                                                <p className="text-xs text-gray-400 ml-6">Beg. Cash + Receipts</p>
+                                            </div>
+                                            <div className="text-lg font-bold text-green-700">{formatCurrency(results.availableCash)}</div>
+                                        </div>
+
+                                        {/* Q3 */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                                            <div>
+                                                <span className="font-bold text-blue-600 mr-2">3.</span>
+                                                <span className="text-gray-700 font-medium">Budgeted Variable Cash Disbursements</span>
+                                                <p className="text-xs text-gray-400 ml-6">Based on prod units for mfg, sales units for SGA</p>
+                                            </div>
+                                            <div className="text-lg font-bold text-red-600">{formatCurrency(results.varCashDisbursements)}</div>
+                                        </div>
+
+                                        {/* Q4 */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                                            <div>
+                                                <span className="font-bold text-blue-600 mr-2">4.</span>
+                                                <span className="text-gray-700 font-medium">Budgeted Total Cash Disbursements</span>
+                                                <p className="text-xs text-gray-400 ml-6">Var + Fixed (excl. depr) + Equipment</p>
+                                            </div>
+                                            <div className="text-lg font-bold text-red-600">{formatCurrency(results.totalDisbursements)}</div>
+                                        </div>
+
+                                        {/* Q5 */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-gray-100 border border-gray-200">
+                                            <div>
+                                                <span className="font-bold text-blue-600 mr-2">5.</span>
+                                                <span className="text-gray-800 font-bold">End Cash Balance Before Financing</span>
+                                            </div>
+                                            <div className={`text-xl font-bold ${results.endCashBeforeFin >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                                {formatCurrency(results.endCashBeforeFin)}
+                                            </div>
+                                        </div>
+
+                                        {/* Q6 & Q7 grouped for financing */}
+                                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-100 space-y-3">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                                                <div>
+                                                    <span className="font-bold text-blue-800 mr-2">6.</span>
+                                                    <span className="text-blue-900 font-medium">Amount of Borrowing Needed</span>
+                                                    <p className="text-xs text-blue-600 ml-6">Increments of {formatCurrency(inputs.borrowIncrement)}</p>
+                                                </div>
+                                                <div className="text-lg font-bold text-blue-900">{formatCurrency(results.borrowingNeeded)}</div>
+                                            </div>
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-blue-200 pt-3">
+                                                <div>
+                                                    <span className="font-bold text-blue-800 mr-2">7.</span>
+                                                    <span className="text-blue-900 font-medium">Cost of Interest (One Month)</span>
+                                                </div>
+                                                <div className="text-lg font-bold text-red-600">{formatCurrency(results.interestCost)}</div>
+                                            </div>
+                                        </div>
+
+                                        {/* Q8 */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                                            <div>
+                                                <span className="font-bold text-blue-600 mr-2">8.</span>
+                                                <span className="text-gray-700 font-medium">Budgeted Net Cash Flow</span>
+                                                <p className="text-xs text-gray-400 ml-6">Receipts - Disbursements</p>
+                                            </div>
+                                            <div className={`text-lg font-bold ${results.netCashFlow >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                                {formatCurrency(results.netCashFlow)}
+                                            </div>
+                                        </div>
+
+                                        {/* Q9 */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
+                                            <div>
+                                                <span className="font-bold text-blue-600 mr-2">9.</span>
+                                                <span className="text-gray-700 font-medium">Budgeted Net Income (Loss)</span>
+                                                <p className="text-xs text-gray-400 ml-6">Contribution Margin Method</p>
+                                            </div>
+                                            <div className={`text-lg font-bold ${results.netIncome >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                                {formatCurrency(results.netIncome)}
+                                            </div>
+                                        </div>
+
+                                        {/* Q10 & Q11 */}
+                                        <div className="bg-amber-50 rounded-lg p-4 border border-amber-200 space-y-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                                                <div>
+                                                    <span className="font-bold text-amber-800 mr-2">10.</span>
+                                                    <span className="text-amber-900 font-medium">Difference: Net Income vs Net Cash Flow</span>
+                                                </div>
+                                                <div className="text-lg font-bold text-amber-700">{formatCurrency(results.differenceNiCf)}</div>
+                                            </div>
+                                            
+                                            <div className="border-t border-amber-200 pt-3">
+                                                <div className="flex items-start">
+                                                    <span className="font-bold text-amber-800 mr-2 mt-1">11.</span>
+                                                    <div>
+                                                        <span className="text-amber-900 font-medium block">Item Creating Largest Difference</span>
+                                                        <div className="mt-2 bg-white px-4 py-3 rounded-md border border-amber-100 flex items-center gap-3">
+                                                            <AlertCircleIcon size={20} className="text-amber-600 shrink-0"/>
+                                                            <div>
+                                                                <p className="font-bold text-gray-800">{results.largestItem.name}</p>
+                                                                <p className="text-sm text-gray-500">Impact amount: <span className="font-semibold text-gray-700">{formatCurrency(Math.abs(results.largestItem.value))}</span></p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render the App
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
