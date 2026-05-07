@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounting Master Calculator</title>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Load Babel to process JSX in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Inline Icon Components (Replacing lucide-react for standalone HTML) ---
+        const Calculator = ({className}) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16.01" y1="10" y2="10"/><line x1="12" x2="12.01" y1="10" y2="10"/><line x1="8" x2="8.01" y1="10" y2="10"/><line x1="16" x2="16.01" y1="14" y2="14"/><line x1="12" x2="12.01" y1="14" y2="14"/><line x1="8" x2="8.01" y1="14" y2="14"/><line x1="16" x2="16.01" y1="18" y2="18"/><line x1="12" x2="12.01" y1="18" y2="18"/><line x1="8" x2="8.01" y1="18" y2="18"/></svg>
+        );
+        const ChevronDown = ({className}) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m6 9 6 6 6-6"/></svg>
+        );
+        const ChevronUp = ({className}) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m18 15-6-6-6 6"/></svg>
+        );
+        const Copy = ({className}) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        );
+        const CheckCircle2 = ({className}) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+        );
+        const HelpCircle = ({className}) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        );
+        const BookOpen = ({className}) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        );
+
+        // --- Calculator Data & Logic ---
+        const calculators = [
+          {
+            id: "cash-receipts-single",
+            title: "1. Budgeted Cash Receipts (Single Month)",
+            exampleProblem: "Compute the Budgeted Cash Receipts for the Month. Projected Sales Revenues are $500,000, 50% of All Sales are Credit Sales and 50% are Cash Sales. 20% of the Credit sales will be collected in the month of the sale.",
+            formula: [
+              "Total Receipts = Cash Sales + Collected Credit Sales",
+              "Cash Sales = Projected Sales Revenue × Cash Sales %",
+              "Collected Credit Sales = Projected Sales Revenue × Credit Sales % × Collection %"
+            ],
+            variables: [
+              "Projected Sales Revenue: Total estimated sales for the period.",
+              "Cash Sales (%): The percentage of total sales paid for immediately in cash.",
+              "Credit Sales (%): The percentage of total sales made on credit.",
+              "Current Month Collection (%): The percentage of credit sales collected in the same month."
+            ],
+            inputs: [
+              { id: "sales", label: "Projected Sales Revenue", type: "number", default: 500000, prefix: "$" },
+              { id: "cashPercent", label: "Cash Sales (%)", type: "number", default: 50, suffix: "%" },
+              { id: "creditPercent", label: "Credit Sales (%)", type: "number", default: 50, suffix: "%" },
+              { id: "collectionPercent", label: "Current Month Collection (%)", type: "number", default: 20, suffix: "%" }
+            ],
+            compute: (v) => (v.sales * (v.cashPercent / 100)) + (v.sales * (v.creditPercent / 100) * (v.collectionPercent / 100))
+          },
+          {
+            id: "required-purchases-pct",
+            title: "2. Required Purchases (Percentage-based Inventory)",
+            exampleProblem: "Compute the Required Purchases for the Month of October. Projected Sales in Units for October are 20,000 Units. Projected Sales in Units for November is 50,000 Units. Desired Ending Inventory for any month should be 40% of the next months Expected Sales. Ending Inventory for September is expected to be 10,000 Units.",
+            formula: [
+              "Required Purchases = Expected Sales + Desired Ending Inventory - Beginning Inventory",
+              "Desired Ending Inventory = Next Month's Sales × Desired Ending %",
+              "Beginning Inventory = Previous Month's Ending Inventory"
+            ],
+            variables: [
+              "Current Month Sales: Estimated units sold in the current period.",
+              "Next Month Sales: Estimated units sold in the upcoming period.",
+              "Desired Ending Inventory (%): Buffer stock for the next month, expressed as a percentage of next month's sales.",
+              "Beginning Inventory: The ending inventory from the previous month."
+            ],
+            inputs: [
+              { id: "currentSales", label: "Current Month Sales (Units)", type: "number", default: 20000 },
+              { id: "nextSales", label: "Next Month Sales (Units)", type: "number", default: 50000 },
+              { id: "desiredPct", label: "Desired Ending Inventory (%)", type: "number", default: 40, suffix: "%" },
+              { id: "beginningInv", label: "Beginning Inventory (Units)", type: "number", default: 10000 }
+            ],
+            compute: (v) => v.currentSales + (v.nextSales * (v.desiredPct / 100)) - v.beginningInv
+          },
+          {
+            id: "direct-labor-cost",
+            title: "3. Budgeted Direct Labor Cost",
+            exampleProblem: "Compute the Budgeted Direct Labor Cost for the Year. Budgeted Production Units for the Year are 60,000 units. Each unit takes 1/2 hour to produce and the Average Direct Labor Cost per hour is $30 per Hour.",
+            formula: [
+              "Total Labor Cost = Production Units × Hours per Unit × Labor Cost per Hour"
+            ],
+            variables: [
+              "Budgeted Production Units: Total units planned to be manufactured.",
+              "Hours per Unit: The time it takes to produce exactly one unit.",
+              "Labor Cost per Hour: The average hourly wage for direct manufacturing labor."
+            ],
+            inputs: [
+              { id: "units", label: "Budgeted Production Units", type: "number", default: 60000 },
+              { id: "hoursPerUnit", label: "Hours per Unit", type: "number", default: 0.5 },
+              { id: "costPerHour", label: "Average Labor Cost per Hour", type: "number", default: 30, prefix: "$" }
+            ],
+            compute: (v) => v.units * v.hoursPerUnit * v.costPerHour
+          },
+          {
+            id: "budgeted-sga",
+            title: "4. Budgeted SG&A Costs",
+            exampleProblem: "Compute the Budgeted SGA Costs. Budgeted Variable SGA Costs are 12.50% of Sales Revenues. Budgeted Fixed SGA Costs are $60,000. Budgeted Sales Revenues are $100,000.",
+            formula: [
+              "Total SG&A = Fixed SG&A Costs + Variable SG&A Costs",
+              "Variable SG&A Costs = Budgeted Sales Revenues × Variable SG&A %"
+            ],
+            variables: [
+              "Budgeted Sales Revenues: Total estimated sales dollars.",
+              "Variable SG&A (%): Selling, General & Admin costs that fluctuate with sales volume.",
+              "Fixed SG&A Costs: Overhead costs that remain constant regardless of sales."
+            ],
+            inputs: [
+              { id: "sales", label: "Budgeted Sales Revenues", type: "number", default: 100000, prefix: "$" },
+              { id: "varPercent", label: "Variable SG&A (%)", type: "number", default: 12.5, suffix: "%", step: 0.01 },
+              { id: "fixedCosts", label: "Fixed SG&A Costs", type: "number", default: 60000, prefix: "$" }
+            ],
+            compute: (v) => v.fixedCosts + (v.sales * (v.varPercent / 100))
+          },
+          {
+            id: "cash-receipts-multi",
+            title: "5. Cash Receipts (Multi-Month Collection)",
+            exampleProblem: "Compute the Cash Receipts for JULY. JUNE Sales Revenues are expected to be $600,000. JULY Sales Revenues are expected to be $500,000. Sales Revenues are Expected to be 30% Cash and 70% Credit Sales. Credit Sales are Usually collected 40% in current Month and 60% in the Month After the Sale.",
+            formula: [
+              "Total Receipts = Current Cash Sales + Collected Current Credit + Collected Previous Credit",
+              "• Current Cash Sales = Current Sales × Cash Sales %",
+              "• Collected Current Credit = Current Sales × Credit Sales % × Current Month Collection %",
+              "• Collected Previous Credit = Previous Sales × Credit Sales % × Next Month Collection %"
+            ],
+            variables: [
+              "Previous / Current Sales: Estimated total revenues for those specific months.",
+              "Cash / Credit Sales (%): How total sales are split between immediate payment and credit.",
+              "Collection Percentages: The historical pattern of when customers pay their credit balances."
+            ],
+            inputs: [
+              { id: "prevSales", label: "Previous Month Sales (e.g. June)", type: "number", default: 600000, prefix: "$" },
+              { id: "currSales", label: "Current Month Sales (e.g. July)", type: "number", default: 500000, prefix: "$" },
+              { id: "cashPct", label: "Cash Sales (%)", type: "number", default: 30, suffix: "%" },
+              { id: "creditPct", label: "Credit Sales (%)", type: "number", default: 70, suffix: "%" },
+              { id: "currCollPct", label: "Credit Collected Current Month (%)", type: "number", default: 40, suffix: "%" },
+              { id: "nextCollPct", label: "Credit Collected Next Month (%)", type: "number", default: 60, suffix: "%" }
+            ],
+            compute: (v) => {
+              const cashSales = v.currSales * (v.cashPct / 100);
+              const currCreditColl = v.currSales * (v.creditPct / 100) * (v.currCollPct / 100);
+              const prevCreditColl = v.prevSales * (v.creditPct / 100) * (v.nextCollPct / 100);
+              return cashSales + currCreditColl + prevCreditColl;
+            }
+          },
+          {
+            id: "interest-cost-1mo",
+            title: "6. Interest Cost (Single Month)",
+            exampleProblem: "Compute the Interest Cost to Borrow $120,000 for One Month at 8.50% Interest.",
+            formula: [
+              "Interest Cost = Principal × Annual Interest Rate × (1 / 12)"
+            ],
+            variables: [
+              "Principal: The initial amount of money borrowed.",
+              "Annual Interest Rate: The percentage of interest charged over a full year.",
+              "Note: We multiply by 1/12 to find the cost for just ONE month."
+            ],
+            inputs: [
+              { id: "principal", label: "Principal (Amount Borrowed)", type: "number", default: 120000, prefix: "$" },
+              { id: "rate", label: "Annual Interest Rate (%)", type: "number", default: 8.5, suffix: "%", step: 0.01 }
+            ],
+            compute: (v) => v.principal * (v.rate / 100) * (1 / 12)
+          },
+          {
+            id: "budget-variance",
+            title: "7. Budget Variance (Expenses)",
+            exampleProblem: "Compute the Budget Variance = for the Budget of a Business with Budgeted Expenses of $100,000 and Actual Expenses of $150,000.",
+            formula: [
+              "Variance = Actual Expenses - Budgeted Expenses"
+            ],
+            variables: [
+              "Budgeted Expenses: The amount planned or expected to be spent.",
+              "Actual Expenses: The amount actually spent in reality.",
+              "Note: A positive number means Actual > Budgeted (Unfavorable for expenses). Your course asks for 'Number Only' so this outputs the mathematical difference."
+            ],
+            inputs: [
+              { id: "budgeted", label: "Budgeted Expenses", type: "number", default: 100000, prefix: "$" },
+              { id: "actual", label: "Actual Expenses", type: "number", default: 150000, prefix: "$" }
+            ],
+            compute: (v) => Math.abs(v.actual - v.budgeted)
+          },
+          {
+            id: "simple-interest-multi",
+            title: "8. Simple Interest (Multi-Month)",
+            exampleProblem: "Compute the Simple Interest Cost to Borrow $50,000 at 6% for 20 months.",
+            formula: [
+              "Interest = Principal × Annual Interest Rate × (Months / 12)"
+            ],
+            variables: [
+              "Principal: The total amount borrowed.",
+              "Annual Interest Rate: The interest rate applied per year.",
+              "Months: The duration of the loan. Dividing by 12 converts it to an annual fraction."
+            ],
+            inputs: [
+              { id: "principal", label: "Principal (Amount Borrowed)", type: "number", default: 50000, prefix: "$" },
+              { id: "rate", label: "Annual Interest Rate (%)", type: "number", default: 6, suffix: "%", step: 0.01 },
+              { id: "months", label: "Number of Months", type: "number", default: 20 }
+            ],
+            compute: (v) => v.principal * (v.rate / 100) * (v.months / 12)
+          },
+          {
+            id: "required-purchases-abs",
+            title: "9. Required Material Purchases (Absolute Inventory)",
+            exampleProblem: "Compute the Required Material Purchases for the Month of April = a) Sales Forecast in Units for April =19,000 Units b) Desired Ending Inventory is = 7,000 Units c) Expected Ending Inventory for March is = 4,400 Units.",
+            formula: [
+              "Required Purchases = Sales Forecast + Desired Ending Inventory - Expected Beginning Inventory"
+            ],
+            variables: [
+              "Sales Forecast: Units expected to be sold in the given period.",
+              "Desired Ending Inventory: Total units you want left on the shelves at the end.",
+              "Expected Beginning Inventory: Units already in stock from the previous period."
+            ],
+            inputs: [
+              { id: "sales", label: "Sales Forecast (Units)", type: "number", default: 19000 },
+              { id: "endInv", label: "Desired Ending Inventory", type: "number", default: 7000 },
+              { id: "begInv", label: "Expected Beginning Inventory", type: "number", default: 4400 }
+            ],
+            compute: (v) => v.sales + v.endInv - v.begInv
+          }
+        ];
+
+        // --- Main App Component ---
+        function App() {
+          const [openId, setOpenId] = useState(calculators[0].id);
+          const [values, setValues] = useState({});
+          const [copiedId, setCopiedId] = useState(null);
+
+          // Initialize values on mount
+          useEffect(() => {
+            const initialValues = {};
+            calculators.forEach(calc => {
+              initialValues[calc.id] = {};
+              calc.inputs.forEach(input => {
+                // Initialize as empty string so the placeholder can show
+                initialValues[calc.id][input.id] = "";
+              });
+            });
+            setValues(initialValues);
+          }, []);
+
+          const handleInputChange = (calcId, inputId, val) => {
+            setValues(prev => ({
+              ...prev,
+              [calcId]: {
+                ...prev[calcId],
+                // Store exactly what the user types (allows empty strings)
+                [inputId]: val
+              }
+            }));
+          };
+
+          const copyToClipboard = (text, calcId) => {
+            navigator.clipboard.writeText(text).then(() => {
+              setCopiedId(calcId);
+              setTimeout(() => setCopiedId(null), 2000);
+            });
+          };
+
+          if (Object.keys(values).length === 0) return <div className="p-8 text-center">Loading Calculator...</div>;
+
+          return (
+            <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 sm:p-8">
+              <div className="max-w-4xl mx-auto">
+                
+                {/* Header */}
+                <header className="mb-8 text-center sm:text-left flex items-center justify-center sm:justify-start gap-4">
+                  <div className="bg-blue-600 p-3 rounded-xl shadow-lg">
+                    <Calculator className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Accounting Master Calculator</h1>
+                    <p className="text-slate-500 mt-1">Plug in your numbers. Get raw answers ready for course submission.</p>
+                  </div>
+                </header>
+
+                {/* Accordion List */}
+                <div className="space-y-4">
+                  {calculators.map((calc) => {
+                    const isOpen = openId === calc.id;
+                    const currentValues = values[calc.id] || {};
+                    
+                    // Coerce any empty strings to 0 so the mathematical formulas don't break
+                    const computeValues = {};
+                    Object.keys(currentValues).forEach(k => {
+                      computeValues[k] = parseFloat(currentValues[k]) || 0;
+                    });
+
+                    let result = 0;
+                    try { result = calc.compute(computeValues); } catch (e) { result = 0; }
+                    
+                    // Format result strictly as "Number Only" (No decimals, commas)
+                    const rawOutput = Math.round(result).toString();
+
+                    return (
+                      <div key={calc.id} className={`bg-white border transition-all duration-200 rounded-xl overflow-hidden ${isOpen ? 'border-blue-400 shadow-xl ring-1 ring-blue-400' : 'border-slate-200 shadow-sm hover:border-blue-200 hover:shadow-md'}`}>
+                        
+                        {/* Accordion Header */}
+                        <button 
+                          onClick={() => setOpenId(isOpen ? null : calc.id)}
+                          className="w-full px-6 py-5 flex items-center justify-between bg-white focus:outline-none"
+                        >
+                          <h2 className="text-lg font-bold text-slate-800 text-left pr-4">{calc.title}</h2>
+                          <div className="flex items-center gap-4">
+                            {!isOpen && (
+                              <span className="hidden sm:inline-block text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                                Answer: {rawOutput}
+                              </span>
+                            )}
+                            {isOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                          </div>
+                        </button>
+
+                        {/* Accordion Body */}
+                        {isOpen && (
+                          <div className="px-6 pb-6 pt-2 border-t border-slate-100 bg-slate-50/50">
+                            
+                            {/* Example Problem Callout */}
+                            <div className="mb-6 mt-2 bg-white border-l-4 border-slate-400 p-4 rounded-r-lg shadow-sm">
+                              <h4 className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-1">
+                                <BookOpen className="w-4 h-4 text-slate-500" />
+                                Original Problem Example
+                              </h4>
+                              <p className="text-sm text-slate-600 italic">
+                                "{calc.exampleProblem}"
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                              
+                              {/* Left Side: Inputs */}
+                              <div>
+                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Input Variables</h3>
+                                <div className="space-y-4">
+                                  {calc.inputs.map(input => (
+                                    <div key={input.id}>
+                                      <label className="block text-sm font-semibold text-slate-700 mb-1">
+                                        {input.label}
+                                      </label>
+                                      <div className="relative rounded-md shadow-sm">
+                                        {input.prefix && (
+                                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span className="text-slate-400 sm:text-sm">{input.prefix}</span>
+                                          </div>
+                                        )}
+                                        <input
+                                          type="number"
+                                          step={input.step || "1"}
+                                          className={`focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-slate-300 rounded-lg p-2.5 bg-white border ${input.prefix ? 'pl-7' : ''} ${input.suffix ? 'pr-8' : ''}`}
+                                          value={currentValues[input.id] !== undefined ? currentValues[input.id] : ''}
+                                          placeholder={input.default}
+                                          onChange={(e) => handleInputChange(calc.id, input.id, e.target.value)}
+                                        />
+                                        {input.suffix && (
+                                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                            <span className="text-slate-400 sm:text-sm">{input.suffix}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Right Side: Logic & Output */}
+                              <div className="flex flex-col space-y-6">
+                                
+                                {/* Final Answer Box */}
+                                <div className="bg-blue-600 rounded-xl p-5 text-white shadow-inner flex flex-col justify-center relative overflow-hidden">
+                                  <div className="absolute top-0 right-0 p-4 opacity-10">
+                                    <Calculator className="w-24 h-24" />
+                                  </div>
+                                  <span className="text-blue-100 font-semibold text-sm uppercase tracking-widest mb-1 z-10">Course Submission Answer</span>
+                                  <span className="text-4xl font-black z-10 tracking-tight">{rawOutput}</span>
+                                  <span className="text-xs text-blue-200 mt-2 z-10 opacity-80">(Numbers only, no decimals/commas/signs)</span>
+                                  
+                                  <button 
+                                    onClick={() => copyToClipboard(rawOutput, calc.id)}
+                                    className="mt-4 z-10 inline-flex items-center justify-center gap-2 bg-white text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm w-fit"
+                                  >
+                                    {copiedId === calc.id ? (
+                                      <><CheckCircle2 className="w-4 h-4 text-green-500" /> Copied!</>
+                                    ) : (
+                                      <><Copy className="w-4 h-4" /> Copy Number</>
+                                    )}
+                                  </button>
+                                </div>
+
+                                {/* Formulas & Variables */}
+                                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                                  <div className="mb-4">
+                                    <h4 className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                                      <HelpCircle className="w-4 h-4 text-blue-500" />
+                                      Formula Used
+                                    </h4>
+                                    <div className="bg-slate-50 border border-slate-100 rounded-md p-3 text-sm font-mono text-slate-800 space-y-1">
+                                      {calc.formula.map((line, idx) => (
+                                        <div key={idx}>{line}</div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <h4 className="text-sm font-bold text-slate-700 mb-2">Variable Definitions</h4>
+                                    <ul className="text-xs text-slate-600 space-y-2 list-disc pl-4">
+                                      {calc.variables.map((v, idx) => {
+                                        const [term, desc] = v.split(':');
+                                        return (
+                                          <li key={idx}>
+                                            <span className="font-semibold text-slate-800">{term}:</span> {desc}
+                                          </li>
+                                        )
+                                      })}
+                                    </ul>
+                                  </div>
+                                </div>
+
+                              </div>
+
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                <footer className="mt-8 text-center text-sm text-slate-400 pb-8">
+                  Built for Accounting Problem Solving • All inputs calculate automatically
+                </footer>
+              </div>
+            </div>
+          );
+        }
+
+        // --- Render the App ---
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
