@@ -71,6 +71,29 @@
       </svg>
     );
 
+    // Grouped Input Field Component
+    const InputRow = ({ label, name, value, onChange, format = "currency" }) => {
+      const isPercent = format === "percent";
+      const isCurrency = format === "currency";
+      
+      return (
+        <div className="flex items-center justify-between py-1.5">
+          <label className="text-sm font-medium text-gray-700">{label}</label>
+          <div className="relative">
+            {isCurrency && <span className="absolute left-2 top-2 text-blue-500 font-semibold">$</span>}
+            <input
+              type="number"
+              name={name}
+              value={value}
+              onChange={onChange}
+              className={`w-28 ${isCurrency ? 'pl-6' : 'pl-3'} ${isPercent ? 'pr-7' : 'pr-3'} py-1.5 border-2 border-blue-300 bg-blue-50/30 rounded-md shadow-[0_0_8px_rgba(59,130,246,0.3)] outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right text-sm font-semibold text-blue-900 transition-all`}
+            />
+            {isPercent && <span className="absolute right-2 top-2 text-blue-500 font-semibold">%</span>}
+          </div>
+        </div>
+      );
+    };
+
     const INITIAL_STATE = {
       // A. Production & Sales
       unitsProduced: '',
@@ -164,9 +187,8 @@
         }
 
         const monthlyInterestRate = (vals.annualInterestRatePercent / 100) / 12;
-        const q48_interestCostOnQ47 = q47_financingReqNoInterest * monthlyInterestRate;
 
-        // Q49 Calculation (Increments with interest coverage)
+        // Q49 Calculation (Increments with interest coverage) - Calculated first to get actual interest
         let q49_financingNeeded = 0;
         let actualInterestPaid = 0;
         if (q46_endingCashBeforeFinancing < vals.minCashRequired && vals.borrowingIncrement > 0) {
@@ -176,6 +198,9 @@
           q49_financingNeeded = incrementsNeeded * vals.borrowingIncrement;
           actualInterestPaid = q49_financingNeeded * monthlyInterestRate;
         }
+
+        // FIXED: Reverted to calculating on the exact deficiency (Q47) for the primary answer
+        const q48_interestCostOnQ47 = q47_financingReqNoInterest * monthlyInterestRate; 
 
         // --- Step 5: Net Cash Flow & Net Income ---
         const q50_netCashFlow = q42_cashReceipts - q45_totalCashDisbursements; // Before financing
@@ -187,7 +212,12 @@
         const contributionMargin = totalSales - totalVarExpenses;
         
         const totalFixedExpenses = fixedCashCosts + vals.machineryDepr; // Include depreciation!
+        
+        // FIXED: Reverted Net Income back to CVP standards (ignoring financing/interest expense)
         const q51_netIncome = contributionMargin - totalFixedExpenses;
+
+        // Compute difference between Net Income and Net Cash Flow
+        const differenceNetIncomeCashFlow = Math.abs(q51_netIncome - q50_netCashFlow);
 
         setResults({
           totalSales, cashSales, creditSales, creditCollectedCurrent,
@@ -195,29 +225,11 @@
           q42_cashReceipts, q43_availableCash, q44_varCashDisbursements, q45_totalCashDisbursements,
           q46_endingCashBeforeFinancing, q47_financingReqNoInterest, q48_interestCostOnQ47,
           q49_financingNeeded, actualInterestPaid, q50_netCashFlow, q51_netIncome,
-          totalVarExpenses, totalFixedExpenses
+          totalVarExpenses, totalFixedExpenses, differenceNetIncomeCashFlow
         });
       };
 
       const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
-
-      // Grouped Input Field Component
-      const InputRow = ({ label, name, isPercent = false }) => (
-        <div className="flex items-center justify-between py-1.5">
-          <label className="text-sm font-medium text-gray-700">{label}</label>
-          <div className="relative">
-            {!isPercent && <span className="absolute left-2 top-2 text-blue-500 font-semibold">$</span>}
-            <input
-              type="number"
-              name={name}
-              value={inputs[name]}
-              onChange={handleInputChange}
-              className={`w-28 pl-${!isPercent ? '6' : '3'} ${isPercent ? 'pr-7' : 'pr-3'} py-1.5 border-2 border-blue-300 bg-blue-50/30 rounded-md shadow-[0_0_8px_rgba(59,130,246,0.3)] outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right text-sm font-semibold text-blue-900 transition-all`}
-            />
-            {isPercent && <span className="absolute right-2 top-2 text-blue-500 font-semibold">%</span>}
-          </div>
-        </div>
-      );
 
       return (
         <div className="min-h-screen bg-gray-50 p-4 md:p-8 font-sans text-gray-800">
@@ -248,51 +260,51 @@
                 {/* Sec A: Production & Sales */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                   <h3 className="font-semibold text-lg text-slate-800 mb-4 border-b pb-2">A. Production & Sales</h3>
-                  <InputRow label="Units Produced" name="unitsProduced" isPercent={true} />
-                  <InputRow label="Units Sold" name="unitsSold" isPercent={true} />
-                  <InputRow label="Sales Price per Unit" name="salesPrice" />
+                  <InputRow label="Units Produced" name="unitsProduced" value={inputs.unitsProduced} onChange={handleInputChange} format="number" />
+                  <InputRow label="Units Sold" name="unitsSold" value={inputs.unitsSold} onChange={handleInputChange} format="number" />
+                  <InputRow label="Sales Price per Unit" name="salesPrice" value={inputs.salesPrice} onChange={handleInputChange} />
                   <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-50">
-                    <InputRow label="Credit Sales" name="creditSalesPercent" isPercent={true} />
-                    <InputRow label="Cash Sales" name="cashSalesPercent" isPercent={true} />
-                    <InputRow label="Credit Col. (Current)" name="creditCollectedCurrentPercent" isPercent={true} />
-                    <InputRow label="Credit Col. (Later)" name="creditCollectedLaterPercent" isPercent={true} />
+                    <InputRow label="Credit Sales" name="creditSalesPercent" value={inputs.creditSalesPercent} onChange={handleInputChange} format="percent" />
+                    <InputRow label="Cash Sales" name="cashSalesPercent" value={inputs.cashSalesPercent} onChange={handleInputChange} format="percent" />
+                    <InputRow label="Credit Col. (Current)" name="creditCollectedCurrentPercent" value={inputs.creditCollectedCurrentPercent} onChange={handleInputChange} format="percent" />
+                    <InputRow label="Credit Col. (Later)" name="creditCollectedLaterPercent" value={inputs.creditCollectedLaterPercent} onChange={handleInputChange} format="percent" />
                   </div>
                 </div>
 
                 {/* Sec B: Variable Costs */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                   <h3 className="font-semibold text-lg text-slate-800 mb-4 border-b pb-2">B. Variable Costs (Per Unit)</h3>
-                  <InputRow label="Direct Material" name="dmPerUnit" />
-                  <InputRow label="Direct Labor" name="dlPerUnit" />
-                  <InputRow label="Indirect Materials" name="imPerUnit" />
-                  <InputRow label="Sales Commissions" name="commPerUnit" />
+                  <InputRow label="Direct Material" name="dmPerUnit" value={inputs.dmPerUnit} onChange={handleInputChange} />
+                  <InputRow label="Direct Labor" name="dlPerUnit" value={inputs.dlPerUnit} onChange={handleInputChange} />
+                  <InputRow label="Indirect Materials" name="imPerUnit" value={inputs.imPerUnit} onChange={handleInputChange} />
+                  <InputRow label="Sales Commissions" name="commPerUnit" value={inputs.commPerUnit} onChange={handleInputChange} />
                   <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-50">
-                    <InputRow label="% Paid Current Mo." name="vcPaidCurrentPercent" isPercent={true} />
-                    <InputRow label="% Paid Later" name="vcPaidLaterPercent" isPercent={true} />
+                    <InputRow label="% Paid Current Mo." name="vcPaidCurrentPercent" value={inputs.vcPaidCurrentPercent} onChange={handleInputChange} format="percent" />
+                    <InputRow label="% Paid Later" name="vcPaidLaterPercent" value={inputs.vcPaidLaterPercent} onChange={handleInputChange} format="percent" />
                   </div>
                 </div>
 
                 {/* Sec C & D: Fixed Costs & Dividends */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                   <h3 className="font-semibold text-lg text-slate-800 mb-4 border-b pb-2">C & D. Fixed Costs & Dividends</h3>
-                  <InputRow label="Manufacturing Salaries" name="mfgSalaries" />
-                  <InputRow label="Factory Rent & Insurance" name="rentAndIns" />
-                  <InputRow label="Machinery Depreciation" name="machineryDepr" />
-                  <InputRow label="Finance/Mgmt Salaries" name="financeSalaries" />
-                  <InputRow label="Advertising Costs" name="advertising" />
+                  <InputRow label="Manufacturing Salaries" name="mfgSalaries" value={inputs.mfgSalaries} onChange={handleInputChange} />
+                  <InputRow label="Factory Rent & Insurance" name="rentAndIns" value={inputs.rentAndIns} onChange={handleInputChange} />
+                  <InputRow label="Machinery Depreciation" name="machineryDepr" value={inputs.machineryDepr} onChange={handleInputChange} />
+                  <InputRow label="Finance/Mgmt Salaries" name="financeSalaries" value={inputs.financeSalaries} onChange={handleInputChange} />
+                  <InputRow label="Advertising Costs" name="advertising" value={inputs.advertising} onChange={handleInputChange} />
                   <div className="mt-3 pt-3 border-t border-gray-50">
-                    <InputRow label="Dividends Paid" name="dividendsPaid" />
+                    <InputRow label="Dividends Paid" name="dividendsPaid" value={inputs.dividendsPaid} onChange={handleInputChange} />
                   </div>
                 </div>
 
                 {/* Sec E: Cash & Financing */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                   <h3 className="font-semibold text-lg text-slate-800 mb-4 border-b pb-2">E. Cash & Financing Settings</h3>
-                  <InputRow label="Beginning Cash Balance" name="begCashBalance" />
-                  <InputRow label="Minimum Cash Required" name="minCashRequired" />
+                  <InputRow label="Beginning Cash Balance" name="begCashBalance" value={inputs.begCashBalance} onChange={handleInputChange} />
+                  <InputRow label="Minimum Cash Required" name="minCashRequired" value={inputs.minCashRequired} onChange={handleInputChange} />
                   <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-50">
-                    <InputRow label="Annual Interest %" name="annualInterestRatePercent" isPercent={true} />
-                    <InputRow label="Borrowing Increments" name="borrowingIncrement" />
+                    <InputRow label="Annual Interest %" name="annualInterestRatePercent" value={inputs.annualInterestRatePercent} onChange={handleInputChange} format="percent" />
+                    <InputRow label="Borrowing Increments" name="borrowingIncrement" value={inputs.borrowingIncrement} onChange={handleInputChange} />
                   </div>
                 </div>
 
@@ -374,7 +386,12 @@
                     <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
                       <h4 className="font-bold text-slate-800 mb-1">48) Cost of Interest (1 Mo)</h4>
                       <span className="text-lg font-bold text-amber-700">{formatCurrency(results.q48_interestCostOnQ47)}</span>
-                      <p className="text-xs text-slate-600 mt-1">On exact deficiency amount</p>
+                      <p className="text-xs text-slate-600 mt-1">On exact deficiency (Q47 base)</p>
+                      {results.actualInterestPaid > 0 && results.actualInterestPaid !== results.q48_interestCostOnQ47 && (
+                        <p className="text-xs text-amber-800 mt-1 border-t border-amber-200 pt-1">
+                          <em>Alt (On Increments): {formatCurrency(results.actualInterestPaid)}</em>
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -405,6 +422,17 @@
                       </span>
                       <p className="text-xs text-slate-600 mt-1">Sales - Var Exp. - Fixed Exp.</p>
                     </div>
+                  </div>
+
+                  {/* Dollar Difference (Net Income vs Net Cash Flow) */}
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-slate-800">Dollar Difference (Net Inc. vs. Cash Flow)</h4>
+                      <span className="text-xl font-bold text-purple-700">{formatCurrency(results.differenceNetIncomeCashFlow)}</span>
+                    </div>
+                    <p className="text-sm text-slate-600 mt-2">
+                      <strong>Work:</strong> Absolute difference between Net Income ({formatCurrency(results.q51_netIncome)}) and Net Cash Flow ({formatCurrency(results.q50_netCashFlow)}).
+                    </p>
                   </div>
 
                   {/* Q52 */}
