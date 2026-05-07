@@ -189,6 +189,16 @@
                             </div>
                         </div>
 
+                        {/* Notice Banner */}
+                        <div className="bg-amber-100 border-l-4 border-amber-500 text-amber-900 p-4 shadow-sm flex items-start gap-3 rounded-r-lg">
+                            <AlertCircleIcon size={20} className="text-amber-600 shrink-0 mt-0.5"/>
+                            <div>
+                                <strong className="block font-bold mb-1">Important Note:</strong>
+                                <p className="text-sm">This calculator correlates specifically to problems stating: <br/>
+                                <span className="italic font-semibold text-amber-800">"We are preparing Our..."</span> OR <span className="italic font-semibold text-amber-800">"The JWOL Corp is preparing their..."</span></p>
+                            </div>
+                        </div>
+
                         <div className="grid md:grid-cols-12 gap-6">
                             
                             {/* Left Column: Inputs */}
@@ -255,7 +265,7 @@
                                                 <span className="font-bold text-blue-600 mr-2">1.</span>
                                                 <span className="text-gray-700 font-medium">Budgeted Cash Receipts</span>
                                             </div>
-                                            <div className="text-lg font-bold text-green-700">{formatCurrency(results.cashReceipts)}</div>
+                                            <div className={`text-lg font-bold ${results.cashReceipts >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(results.cashReceipts)}</div>
                                         </div>
 
                                         {/* Q2 */}
@@ -265,7 +275,7 @@
                                                 <span className="text-gray-700 font-medium">Budgeted Available Cash</span>
                                                 <p className="text-xs text-gray-400 ml-6">Beg. Cash + Receipts</p>
                                             </div>
-                                            <div className="text-lg font-bold text-green-700">{formatCurrency(results.availableCash)}</div>
+                                            <div className={`text-lg font-bold ${results.availableCash >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(results.availableCash)}</div>
                                         </div>
 
                                         {/* Q3 */}
@@ -275,7 +285,7 @@
                                                 <span className="text-gray-700 font-medium">Budgeted Variable Cash Disbursements</span>
                                                 <p className="text-xs text-gray-400 ml-6">Based on prod units for mfg, sales units for SGA</p>
                                             </div>
-                                            <div className="text-lg font-bold text-red-600">{formatCurrency(results.varCashDisbursements)}</div>
+                                            <div className={`text-lg font-bold ${results.varCashDisbursements >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(results.varCashDisbursements)}</div>
                                         </div>
 
                                         {/* Q4 */}
@@ -285,7 +295,7 @@
                                                 <span className="text-gray-700 font-medium">Budgeted Total Cash Disbursements</span>
                                                 <p className="text-xs text-gray-400 ml-6">Var + Fixed (excl. depr) + Equipment</p>
                                             </div>
-                                            <div className="text-lg font-bold text-red-600">{formatCurrency(results.totalDisbursements)}</div>
+                                            <div className={`text-lg font-bold ${results.totalDisbursements >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(results.totalDisbursements)}</div>
                                         </div>
 
                                         {/* Q5 */}
@@ -307,14 +317,14 @@
                                                     <span className="text-blue-900 font-medium">Amount of Borrowing Needed</span>
                                                     <p className="text-xs text-blue-600 ml-6">Increments of {formatCurrency(inputs.borrowIncrement)}</p>
                                                 </div>
-                                                <div className="text-lg font-bold text-blue-900">{formatCurrency(results.borrowingNeeded)}</div>
+                                                <div className={`text-lg font-bold ${results.borrowingNeeded >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(results.borrowingNeeded)}</div>
                                             </div>
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-blue-200 pt-3">
                                                 <div>
                                                     <span className="font-bold text-blue-800 mr-2">7.</span>
                                                     <span className="text-blue-900 font-medium">Cost of Interest (One Month)</span>
                                                 </div>
-                                                <div className="text-lg font-bold text-red-600">{formatCurrency(results.interestCost)}</div>
+                                                <div className={`text-lg font-bold ${results.interestCost >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(results.interestCost)}</div>
                                             </div>
                                         </div>
 
@@ -349,7 +359,7 @@
                                                     <span className="font-bold text-amber-800 mr-2">10.</span>
                                                     <span className="text-amber-900 font-medium">Difference: Net Income vs Net Cash Flow</span>
                                                 </div>
-                                                <div className="text-lg font-bold text-amber-700">{formatCurrency(results.differenceNiCf)}</div>
+                                                <div className={`text-lg font-bold ${results.differenceNiCf >= 0 ? 'text-green-700' : 'text-red-600'}`}>{formatCurrency(results.differenceNiCf)}</div>
                                             </div>
                                             
                                             <div className="border-t border-amber-200 pt-3">
