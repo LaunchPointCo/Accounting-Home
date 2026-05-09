@@ -234,12 +234,42 @@
               { id: "begInv", label: "Expected Beginning Inventory", type: "number", default: 4400 }
             ],
             compute: (v) => v.sales + v.endInv - v.begInv
+          },
+          {
+            id: "borrowing-needed",
+            title: "10. Cash Borrowing Needed",
+            exampleProblem: "Compute the Amount of Cash our Business will need to Borrow? Our Business expects to start the Month with $30,000 Cash on hand. Our Business estimates Cash Receipts of $130,000 and Cash Disbursements of $160,000. Our Business Estimates Net Income of $50,000 for the Month. Our Business requires a Minimum of $15,000 Cash Balance at ALL times.",
+            formula: [
+              "Ending Cash Before Borrowing = Beginning Cash + Cash Receipts - Cash Disbursements",
+              "Borrowing Needed = Minimum Cash Required - Ending Cash Before Borrowing",
+              "(If Ending Cash is already above the minimum, Borrowing Needed is 0)",
+              "Note: Net Income is a distractor and not used in cash flow borrowing calculations."
+            ],
+            variables: [
+              "Beginning Cash: Starting cash balance.",
+              "Cash Receipts: Total cash coming in.",
+              "Cash Disbursements: Total cash going out.",
+              "Minimum Cash Balance: The lowest amount of cash the business is allowed to have on hand.",
+              "Net Income (Distractor): Accrual-based profit. This is included in the inputs to match the problem but does not affect actual cash borrowing needs."
+            ],
+            inputs: [
+              { id: "begCash", label: "Beginning Cash", type: "number", default: 30000, prefix: "$" },
+              { id: "receipts", label: "Cash Receipts", type: "number", default: 130000, prefix: "$" },
+              { id: "disbursements", label: "Cash Disbursements", type: "number", default: 160000, prefix: "$" },
+              { id: "minCash", label: "Minimum Cash Balance", type: "number", default: 15000, prefix: "$" },
+              { id: "netIncome", label: "Net Income (Distractor)", type: "number", default: 50000, prefix: "$" }
+            ],
+            compute: (v) => {
+              const endingCash = v.begCash + v.receipts - v.disbursements;
+              const shortfall = v.minCash - endingCash;
+              return shortfall > 0 ? shortfall : 0;
+            }
           }
         ];
 
         // --- Main App Component ---
         function App() {
-          const [openId, setOpenId] = useState(calculators[0].id);
+          const [activeId, setActiveId] = useState(calculators[0].id);
           const [values, setValues] = useState({});
           const [copiedId, setCopiedId] = useState(null);
 
@@ -276,175 +306,171 @@
 
           if (Object.keys(values).length === 0) return <div className="p-8 text-center">Loading Calculator...</div>;
 
+          const activeCalc = calculators.find(c => c.id === activeId) || calculators[0];
+          const currentValues = values[activeCalc.id] || {};
+          
+          // Coerce any empty strings to 0 so the mathematical formulas don't break
+          const computeValues = {};
+          Object.keys(currentValues).forEach(k => {
+            computeValues[k] = parseFloat(currentValues[k]) || 0;
+          });
+
+          let result = 0;
+          try { result = activeCalc.compute(computeValues); } catch (e) { result = 0; }
+          
+          // Format result strictly as "Number Only" (No decimals, commas)
+          const rawOutput = Math.round(result).toString();
+
           return (
-            <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 sm:p-8">
-              <div className="max-w-4xl mx-auto">
-                
-                {/* Header */}
-                <header className="mb-8 text-center sm:text-left flex items-center justify-center sm:justify-start gap-4">
-                  <div className="bg-blue-600 p-3 rounded-xl shadow-lg">
-                    <Calculator className="w-8 h-8 text-white" />
+            <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 text-slate-900 font-sans">
+              
+              {/* Sidebar Navigation */}
+              <div className="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col md:h-screen md:sticky md:top-0 shadow-sm z-10">
+                <div className="p-6 border-b border-slate-100 flex items-center gap-3">
+                  <div className="bg-blue-600 p-2.5 rounded-xl shadow-sm">
+                    <Calculator className="w-6 h-6 text-white" />
                   </div>
-                  <div>
-                    <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">Accounting Master Calculator</h1>
-                    <p className="text-slate-500 mt-1">Plug in your numbers. Get raw answers ready for course submission.</p>
-                  </div>
-                </header>
-
-                {/* Accordion List */}
-                <div className="space-y-4">
-                  {calculators.map((calc) => {
-                    const isOpen = openId === calc.id;
-                    const currentValues = values[calc.id] || {};
-                    
-                    // Coerce any empty strings to 0 so the mathematical formulas don't break
-                    const computeValues = {};
-                    Object.keys(currentValues).forEach(k => {
-                      computeValues[k] = parseFloat(currentValues[k]) || 0;
-                    });
-
-                    let result = 0;
-                    try { result = calc.compute(computeValues); } catch (e) { result = 0; }
-                    
-                    // Format result strictly as "Number Only" (No decimals, commas)
-                    const rawOutput = Math.round(result).toString();
-
-                    return (
-                      <div key={calc.id} className={`bg-white border transition-all duration-200 rounded-xl overflow-hidden ${isOpen ? 'border-blue-400 shadow-xl ring-1 ring-blue-400' : 'border-slate-200 shadow-sm hover:border-blue-200 hover:shadow-md'}`}>
-                        
-                        {/* Accordion Header */}
-                        <button 
-                          onClick={() => setOpenId(isOpen ? null : calc.id)}
-                          className="w-full px-6 py-5 flex items-center justify-between bg-white focus:outline-none"
-                        >
-                          <h2 className="text-lg font-bold text-slate-800 text-left pr-4">{calc.title}</h2>
-                          <div className="flex items-center gap-4">
-                            {!isOpen && (
-                              <span className="hidden sm:inline-block text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                                Answer: {rawOutput}
-                              </span>
-                            )}
-                            {isOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                          </div>
-                        </button>
-
-                        {/* Accordion Body */}
-                        {isOpen && (
-                          <div className="px-6 pb-6 pt-2 border-t border-slate-100 bg-slate-50/50">
-                            
-                            {/* Example Problem Callout */}
-                            <div className="mb-6 mt-2 bg-white border-l-4 border-slate-400 p-4 rounded-r-lg shadow-sm">
-                              <h4 className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-1">
-                                <BookOpen className="w-4 h-4 text-slate-500" />
-                                Original Problem Example
-                              </h4>
-                              <p className="text-sm text-slate-600 italic">
-                                "{calc.exampleProblem}"
-                              </p>
-                            </div>
-
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                              
-                              {/* Left Side: Inputs */}
-                              <div>
-                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Input Variables</h3>
-                                <div className="space-y-4">
-                                  {calc.inputs.map(input => (
-                                    <div key={input.id}>
-                                      <label className="block text-sm font-semibold text-slate-700 mb-1">
-                                        {input.label}
-                                      </label>
-                                      <div className="relative rounded-md shadow-sm">
-                                        {input.prefix && (
-                                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <span className="text-slate-400 sm:text-sm">{input.prefix}</span>
-                                          </div>
-                                        )}
-                                        <input
-                                          type="number"
-                                          step={input.step || "1"}
-                                          className={`focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-slate-300 rounded-lg p-2.5 bg-white border ${input.prefix ? 'pl-7' : ''} ${input.suffix ? 'pr-8' : ''}`}
-                                          value={currentValues[input.id] !== undefined ? currentValues[input.id] : ''}
-                                          placeholder={input.default}
-                                          onChange={(e) => handleInputChange(calc.id, input.id, e.target.value)}
-                                        />
-                                        {input.suffix && (
-                                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                            <span className="text-slate-400 sm:text-sm">{input.suffix}</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Right Side: Logic & Output */}
-                              <div className="flex flex-col space-y-6">
-                                
-                                {/* Final Answer Box */}
-                                <div className="bg-blue-600 rounded-xl p-5 text-white shadow-inner flex flex-col justify-center relative overflow-hidden">
-                                  <div className="absolute top-0 right-0 p-4 opacity-10">
-                                    <Calculator className="w-24 h-24" />
-                                  </div>
-                                  <span className="text-blue-100 font-semibold text-sm uppercase tracking-widest mb-1 z-10">Course Submission Answer</span>
-                                  <span className="text-4xl font-black z-10 tracking-tight">{rawOutput}</span>
-                                  <span className="text-xs text-blue-200 mt-2 z-10 opacity-80">(Numbers only, no decimals/commas/signs)</span>
-                                  
-                                  <button 
-                                    onClick={() => copyToClipboard(rawOutput, calc.id)}
-                                    className="mt-4 z-10 inline-flex items-center justify-center gap-2 bg-white text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm w-fit"
-                                  >
-                                    {copiedId === calc.id ? (
-                                      <><CheckCircle2 className="w-4 h-4 text-green-500" /> Copied!</>
-                                    ) : (
-                                      <><Copy className="w-4 h-4" /> Copy Number</>
-                                    )}
-                                  </button>
-                                </div>
-
-                                {/* Formulas & Variables */}
-                                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                                  <div className="mb-4">
-                                    <h4 className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
-                                      <HelpCircle className="w-4 h-4 text-blue-500" />
-                                      Formula Used
-                                    </h4>
-                                    <div className="bg-slate-50 border border-slate-100 rounded-md p-3 text-sm font-mono text-slate-800 space-y-1">
-                                      {calc.formula.map((line, idx) => (
-                                        <div key={idx}>{line}</div>
-                                      ))}
-                                    </div>
-                                  </div>
-
-                                  <div>
-                                    <h4 className="text-sm font-bold text-slate-700 mb-2">Variable Definitions</h4>
-                                    <ul className="text-xs text-slate-600 space-y-2 list-disc pl-4">
-                                      {calc.variables.map((v, idx) => {
-                                        const [term, desc] = v.split(':');
-                                        return (
-                                          <li key={idx}>
-                                            <span className="font-semibold text-slate-800">{term}:</span> {desc}
-                                          </li>
-                                        )
-                                      })}
-                                    </ul>
-                                  </div>
-                                </div>
-
-                              </div>
-
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <h1 className="text-lg font-extrabold text-slate-800 leading-tight">Accounting<br/>Calculator</h1>
                 </div>
-                
-                <footer className="mt-8 text-center text-sm text-slate-400 pb-8">
-                  Built for Accounting Problem Solving • All inputs calculate automatically
-                </footer>
+                <nav className="flex-1 overflow-y-auto p-4 space-y-1.5">
+                  {calculators.map(calc => (
+                    <button
+                      key={calc.id}
+                      onClick={() => setActiveId(calc.id)}
+                      className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                        activeId === calc.id 
+                          ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200 shadow-sm' 
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      {calc.title}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+
+              {/* Main Content Area */}
+              <div className="flex-1 p-4 sm:p-8 overflow-y-auto">
+                <div className="max-w-5xl mx-auto">
+                  
+                  <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                    {/* Header */}
+                    <div className="px-6 py-5 border-b border-slate-100 bg-white">
+                      <h2 className="text-2xl font-bold text-slate-800">{activeCalc.title}</h2>
+                    </div>
+
+                    {/* Body */}
+                    <div className="px-6 py-6 bg-slate-50/50">
+                      
+                      {/* Example Problem Callout */}
+                      <div className="mb-8 bg-white border-l-4 border-slate-400 p-5 rounded-r-xl shadow-sm">
+                        <h4 className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-2">
+                          <BookOpen className="w-4 h-4 text-slate-500" />
+                          Original Problem Example
+                        </h4>
+                        <p className="text-sm text-slate-600 italic leading-relaxed">
+                          "{activeCalc.exampleProblem}"
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        
+                        {/* Left Side: Inputs */}
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">Input Variables</h3>
+                          <div className="space-y-5">
+                            {activeCalc.inputs.map(input => (
+                              <div key={input.id}>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                                  {input.label}
+                                </label>
+                                <div className="relative rounded-md shadow-sm">
+                                  {input.prefix && (
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                      <span className="text-slate-500 sm:text-sm">{input.prefix}</span>
+                                    </div>
+                                  )}
+                                  <input
+                                    type="number"
+                                    step={input.step || "1"}
+                                    className={`focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-slate-300 rounded-xl p-3 bg-white border shadow-sm transition-shadow ${input.prefix ? 'pl-8' : ''} ${input.suffix ? 'pr-8' : ''}`}
+                                    value={currentValues[input.id] !== undefined ? currentValues[input.id] : ''}
+                                    placeholder={input.default}
+                                    onChange={(e) => handleInputChange(activeCalc.id, input.id, e.target.value)}
+                                  />
+                                  {input.suffix && (
+                                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                      <span className="text-slate-500 sm:text-sm">{input.suffix}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Right Side: Logic & Output */}
+                        <div className="flex flex-col space-y-6">
+                          
+                          {/* Final Answer Box */}
+                          <div className="bg-blue-600 rounded-2xl p-6 text-white shadow-lg flex flex-col justify-center relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                              <Calculator className="w-32 h-32 transform translate-x-4 -translate-y-4" />
+                            </div>
+                            <span className="text-blue-100 font-semibold text-sm uppercase tracking-widest mb-2 z-10">Course Submission Answer</span>
+                            <span className="text-5xl font-black z-10 tracking-tight drop-shadow-md">{rawOutput}</span>
+                            <span className="text-sm text-blue-200 mt-3 z-10 opacity-90">(Numbers only, no decimals/commas/signs)</span>
+                            
+                            <button 
+                              onClick={() => copyToClipboard(rawOutput, activeCalc.id)}
+                              className="mt-6 z-10 inline-flex items-center justify-center gap-2 bg-white text-blue-700 hover:bg-blue-50 px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-md active:scale-95 w-fit"
+                            >
+                              {copiedId === activeCalc.id ? (
+                                <><CheckCircle2 className="w-5 h-5 text-green-500" /> Copied!</>
+                              ) : (
+                                <><Copy className="w-5 h-5" /> Copy Number</>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Formulas & Variables */}
+                          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                            <div className="mb-6">
+                              <h4 className="flex items-center gap-2 text-sm font-bold text-slate-700 mb-3">
+                                <HelpCircle className="w-5 h-5 text-blue-500" />
+                                Formula Used
+                              </h4>
+                              <div className="bg-slate-50 border border-slate-100 rounded-lg p-4 text-sm font-mono text-slate-800 space-y-2">
+                                {activeCalc.formula.map((line, idx) => (
+                                  <div key={idx} className="leading-relaxed">{line}</div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-700 mb-3">Variable Definitions</h4>
+                              <ul className="text-sm text-slate-600 space-y-3 list-disc pl-5">
+                                {activeCalc.variables.map((v, idx) => {
+                                  const [term, desc] = v.split(':');
+                                  return (
+                                    <li key={idx} className="leading-relaxed">
+                                      <span className="font-bold text-slate-800">{term}:</span> {desc}
+                                    </li>
+                                  )
+                                })}
+                              </ul>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <footer className="mt-8 text-center text-sm text-slate-400 pb-8">
+                    Built for Accounting Problem Solving • All inputs calculate automatically
+                  </footer>
+                </div>
               </div>
             </div>
           );
