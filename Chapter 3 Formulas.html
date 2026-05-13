@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Managerial Accounting Tools</title>
+    
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .input-no-spinner::-webkit-outer-spin-button,
+        .input-no-spinner::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .input-no-spinner { -moz-appearance: textfield; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Utility: Parse input that might have commas (e.g. "10,000")
+        const parseNum = (val) => {
+            if (!val) return 0;
+            return Number(String(val).replace(/,/g, ''));
+        };
+
+        // Utility: Format output strictly as requested (no commas, no symbols)
+        const formatStrict = (num, decimals = null) => {
+            if (isNaN(num)) return "";
+            if (decimals !== null) {
+                return num.toFixed(decimals);
+            }
+            return Math.round(num).toString();
+        };
+
+        const calculatorsConfig = [
+            {
+                id: 'physical_units',
+                title: '1. Total Physical Units',
+                description: 'Computes the total physical units accounted for during a period.',
+                exampleProblem: 'Compute the Total Physical Units;\nBeg WIP Units = 10,000 Units (50% Complete)\nEnd WIP Units = 20,000 Units (45% complete)\nUnits Completed During the Period = 55,000 units\nShow your Answer as a Number only with no Symbols, Commas, or Dollar Signs.',
+                formatRule: 'Number only. No Symbols, Commas, or Dollar Signs.',
+                inputs: [
+                    { id: 'unitsCompleted', label: 'Units Completed During Period' },
+                    { id: 'endWip', label: 'Ending WIP Units' }
+                ],
+                variables: [
+                    { name: 'Units Completed', desc: 'The number of units that were finished and transferred out.' },
+                    { name: 'Ending WIP Units', desc: 'The number of partially completed units remaining at the end of the period.' },
+                    { name: 'Note', desc: 'Beginning WIP and completion percentages are NOT used to calculate physical units accounted for.' }
+                ],
+                formulaText: 'Total Physical Units = Units Completed + Ending WIP Units',
+                calculate: (vals) => formatStrict(parseNum(vals.unitsCompleted) + parseNum(vals.endWip))
+            },
+            {
+                id: 'moh_applied',
+                title: '2. MOH Applied to Jobs',
+                description: 'Calculates the Manufacturing Overhead applied based on a predetermined rate.',
+                exampleProblem: 'Compute the Manufacturing Overhead Applied to Jobs;\nDirect Materials Used=$300,000, Indirect Materials Used =$75,000, Direct Labor=$250,000, Indirect Labor=$55,000, Factory Rent Costs=$175,000.\nThe Manufacturing Overhead Application Rate is 75% of Direct Material Costs.',
+                formatRule: 'Number only. No Symbols, Commas, or Dollar Signs.',
+                inputs: [
+                    { id: 'dmCost', label: 'Direct Materials Used ($)' },
+                    { id: 'mohRate', label: 'MOH Application Rate (%)' }
+                ],
+                variables: [
+                    { name: 'Direct Materials Used', desc: 'The base cost driver used for applying overhead.' },
+                    { name: 'MOH Application Rate', desc: 'The percentage used to apply overhead.' },
+                    { name: 'Note', desc: 'Actual overhead costs (Indirect Materials, Indirect Labor, Factory Rent) are ignored when calculating APPLIED overhead.' }
+                ],
+                formulaText: 'MOH Applied = Direct Material Costs × (MOH Application Rate / 100)',
+                calculate: (vals) => formatStrict(parseNum(vals.dmCost) * (parseNum(vals.mohRate) / 100))
+            },
+            {
+                id: 'net_income',
+                title: '3. Net Income Calculator',
+                description: 'Calculates net income based on equivalent unit cost, sales, and markup.',
+                exampleProblem: 'Compute the Net Income, Given;\nCost Per Equivalent Unit = $55.00, SGA Costs = $22,000.\nUnits Produced=1100, Units Sold=1400.\nSales Markup over Cost=99%.',
+                formatRule: 'Number Only. No Symbols, Dollar Signs, Commas, or Decimals.',
+                inputs: [
+                    { id: 'costPerUnit', label: 'Cost Per Equivalent Unit ($)' },
+                    { id: 'unitsSold', label: 'Units Sold' },
+                    { id: 'markup', label: 'Sales Markup over Cost (%)' },
+                    { id: 'sga', label: 'SGA Costs ($)' }
+                ],
+                variables: [
+                    { name: 'COGS', desc: 'Cost of Goods Sold = Units Sold × Cost Per Equivalent Unit.' },
+                    { name: 'Sales Revenue', desc: 'Calculated as COGS × (1 + Markup Percentage).' },
+                    { name: 'SGA Costs', desc: 'Selling, General, and Administrative expenses (period costs).' },
+                    { name: 'Units Produced', desc: 'Ignored for net income calculation; Net income is based on units SOLD.' }
+                ],
+                formulaText: 'Net Income = [ (Units Sold × Unit Cost) × (1 + Markup) ] - (Units Sold × Unit Cost) - SGA Costs',
+                calculate: (vals) => {
+                    const cogs = parseNum(vals.unitsSold) * parseNum(vals.costPerUnit);
+                    const sales = cogs * (1 + (parseNum(vals.markup) / 100));
+                    const grossProfit = sales - cogs;
+                    const netIncome = grossProfit - parseNum(vals.sga);
+                    return formatStrict(netIncome);
+                }
+            },
+            {
+                id: 'eup',
+                title: '4. Equivalent Units of Production (Weighted Average)',
+                description: 'Computes total equivalent units using the Weighted Average method.',
+                exampleProblem: 'Compute the Total Equivalent Units of Production;\nBeg WIP Units = 10,000 Units (50% Complete)\nEnd WIP Units= 20,000 Units (45% complete)\nUnits Completed During the Period = 55,000 units',
+                formatRule: 'Number only. No Symbols, Commas, or Dollar Signs.',
+                inputs: [
+                    { id: 'completed', label: 'Units Completed During Period' },
+                    { id: 'endWip', label: 'Ending WIP Units' },
+                    { id: 'endWipPct', label: 'Ending WIP Completion (%)' }
+                ],
+                variables: [
+                    { name: 'Units Completed', desc: 'Units 100% complete for both materials and conversion.' },
+                    { name: 'Ending WIP Units', desc: 'Physical units still in process.' },
+                    { name: 'Ending WIP Completion %', desc: 'The percentage of work applied to ending WIP.' },
+                    { name: 'Note', desc: 'Beginning WIP units and % are ignored in the Weighted Average method.' }
+                ],
+                formulaText: 'Total EUP = Units Completed + (Ending WIP Units × Ending WIP Completion %)',
+                calculate: (vals) => formatStrict(parseNum(vals.completed) + (parseNum(vals.endWip) * (parseNum(vals.endWipPct) / 100)))
+            },
+            {
+                id: 'cost_per_eup',
+                title: '5. Total Cost Per Equivalent Unit',
+                description: 'Calculates combined cost per equivalent unit for materials and conversion.',
+                exampleProblem: 'Compute the Total Cost Per Equivalent Unit.\nDirect Labor Costs were =$150,000, Total Direct Material Costs were $69,000, MOH Costs were=$120,000.\nTotal Units Completed During the Period were = 5,000 Units, Ending WIP Units were = 2,000 Units (50% Complete for Direct Materials and 20% Complete for Conversion).',
+                formatRule: 'Number Only out 2 Decimals if Needed.',
+                inputs: [
+                    { id: 'dmCost', label: 'Total Direct Material Costs ($)' },
+                    { id: 'dlCost', label: 'Direct Labor Costs ($)' },
+                    { id: 'mohCost', label: 'MOH Costs ($)' },
+                    { id: 'completed', label: 'Total Units Completed' },
+                    { id: 'endWip', label: 'Ending WIP Units' },
+                    { id: 'dmPct', label: 'Ending WIP DM Completion (%)' },
+                    { id: 'convPct', label: 'Ending WIP Conversion Completion (%)' }
+                ],
+                variables: [
+                    { name: 'Conversion Costs', desc: 'Direct Labor + Manufacturing Overhead.' },
+                    { name: 'DM EUP', desc: 'Units Completed + (Ending WIP × DM %)' },
+                    { name: 'Conversion EUP', desc: 'Units Completed + (Ending WIP × Conversion %)' }
+                ],
+                formulaText: 'Cost Per EUP = (Total DM / DM EUP) + (Total Conversion / Conversion EUP)',
+                calculate: (vals) => {
+                    const convCost = parseNum(vals.dlCost) + parseNum(vals.mohCost);
+                    const dmEup = parseNum(vals.completed) + (parseNum(vals.endWip) * (parseNum(vals.dmPct) / 100));
+                    const convEup = parseNum(vals.completed) + (parseNum(vals.endWip) * (parseNum(vals.convPct) / 100));
+                    
+                    if (dmEup === 0 || convEup === 0) return "0.00";
+                    
+                    const costPerDm = parseNum(vals.dmCost) / dmEup;
+                    const costPerConv = convCost / convEup;
+                    return formatStrict(costPerDm + costPerConv, 2);
+                }
+            },
+            {
+                id: 'predetermined_moh',
+                title: '6. Predetermined MOH Rate',
+                description: 'Computes the overhead application rate.',
+                exampleProblem: 'Compute the Predetermined Manufacturing Overhead Rate, Given the Following;\nEstimated Direct Materials=$200,000, Direct Labor =$100,000, Manufacturing Overhead Costs=$400,000.\nOur Business uses Direct Labor Costs as our Cost Driver or Key Operating Activity.',
+                formatRule: 'Number Only (Representing %). out 2 Decimal Places. Example: 100.00',
+                inputs: [
+                    { id: 'estMoh', label: 'Estimated Manufacturing Overhead ($)' },
+                    { id: 'estDriver', label: 'Estimated Cost Driver Amount (e.g. Total DL Costs) ($)' }
+                ],
+                variables: [
+                    { name: 'Estimated MOH', desc: 'Total expected manufacturing overhead costs for the period.' },
+                    { name: 'Cost Driver', desc: 'The allocation base used (e.g., Direct Labor Costs, Machine Hours).' },
+                    { name: 'Note', desc: 'Direct Materials are ignored here unless they are the specific cost driver.' }
+                ],
+                formulaText: 'Predetermined MOH Rate = (Estimated MOH Costs / Estimated Cost Driver) × 100',
+                calculate: (vals) => {
+                    const driver = parseNum(vals.estDriver);
+                    if (driver === 0) return "0.00";
+                    return formatStrict((parseNum(vals.estMoh) / driver) * 100, 2);
+                }
+            },
+            {
+                id: 'moh_balance',
+                title: '7. MOH Dollar Balance',
+                description: 'Computes the overapplied or underapplied Manufacturing Overhead balance.',
+                exampleProblem: 'Compute the MOH Dollar Balance;\nDirect Materials=$110,000, Direct Labor=$50,000, In-Direct Materials Used = $9,000, In-Direct Labor =$19,000, Finance Costs = $5,000, Factory Rent Costs=$29,000.\nThe MOH Rate is 55% of Direct Material Costs.',
+                formatRule: 'Number Only (Absolute Difference).',
+                inputs: [
+                    { id: 'dmCost', label: 'Direct Materials Used ($)' },
+                    { id: 'mohRate', label: 'MOH Rate (% of DM Cost)' },
+                    { id: 'indMat', label: 'Indirect Materials Used ($)' },
+                    { id: 'indLab', label: 'Indirect Labor ($)' },
+                    { id: 'rent', label: 'Factory Rent Costs ($)' }
+                ],
+                variables: [
+                    { name: 'Applied MOH', desc: 'Direct Materials × MOH Rate.' },
+                    { name: 'Actual MOH', desc: 'Sum of all indirect manufacturing costs (Indirect Materials + Indirect Labor + Factory Rent).' },
+                    { name: 'Finance Costs', desc: 'Period costs (non-manufacturing) and thus excluded from Actual MOH.' },
+                    { name: 'MOH Balance', desc: 'Absolute difference between Actual and Applied MOH.' }
+                ],
+                formulaText: 'Balance = | (Indirect Mat + Indirect Lab + Factory Rent) - (DM Costs × MOH Rate) |',
+                calculate: (vals) => {
+                    const applied = parseNum(vals.dmCost) * (parseNum(vals.mohRate) / 100);
+                    const actual = parseNum(vals.indMat) + parseNum(vals.indLab) + parseNum(vals.rent);
+                    return formatStrict(Math.abs(actual - applied));
+                }
+            }
+        ];
+
+        const CalculatorCard = ({ calc }) => {
+            const [inputs, setInputs] = useState({});
+            const [copied, setCopied] = useState(false);
+            const [isExampleOpen, setIsExampleOpen] = useState(true);
+
+            const handleChange = (id, value) => {
+                setInputs(prev => ({ ...prev, [id]: value }));
+                setCopied(false);
+            };
+
+            // Calculate live result if at least one input has a value
+            const isFormDirty = Object.values(inputs).some(val => val && String(val).trim() !== '');
+            const result = isFormDirty ? calc.calculate(inputs) : null;
+
+            const handleCopy = () => {
+                if (result !== null) {
+                    // Fallback clipboard copying
+                    const textArea = document.createElement("textarea");
+                    textArea.value = result;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                    } catch (err) {
+                        console.error('Failed to copy', err);
+                    }
+                    document.body.removeChild(textArea);
+                }
+            };
+
+            return (
+                <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-8">
+                    <div className="bg-blue-600 text-white px-6 py-4">
+                        <h2 className="text-xl font-semibold">{calc.title}</h2>
+                        <p className="text-blue-100 text-sm mt-1">{calc.description}</p>
+                    </div>
+                    
+                    {/* Example Problem Dropdown */}
+                    <div className="border-b border-gray-200 bg-slate-50">
+                        <button 
+                            onClick={() => setIsExampleOpen(!isExampleOpen)}
+                            className="w-full flex items-center justify-between px-6 py-3 text-sm font-medium text-gray-600 hover:bg-slate-100 transition-colors focus:outline-none"
+                        >
+                            <span className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                View Example Original Problem
+                            </span>
+                            <svg 
+                                className={`w-4 h-4 transition-transform duration-200 ${isExampleOpen ? 'rotate-180' : ''}`} 
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        {isExampleOpen && (
+                            <div className="px-6 py-4 text-sm text-slate-700 italic border-t border-gray-200 bg-white leading-relaxed">
+                                {calc.exampleProblem.split('\n').map((line, i) => (
+                                    <div key={i} className="mb-1">{line}</div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Inputs Section */}
+                        <div className="space-y-4">
+                            <h3 className="font-semibold text-gray-700 border-b pb-2">Enter Variables</h3>
+                            {calc.inputs.map(input => (
+                                <div key={input.id}>
+                                    <label className="block text-sm font-medium text-gray-600 mb-1">{input.label}</label>
+                                    <input 
+                                        type="text" 
+                                        className="input-no-spinner w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                        placeholder="e.g. 10,000"
+                                        value={inputs[input.id] || ''}
+                                        onChange={(e) => handleChange(input.id, e.target.value)}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Variables & Formula Section */}
+                        <div className="space-y-6">
+                            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    Formula
+                                </h3>
+                                <p className="text-sm font-mono bg-white p-3 rounded border text-blue-800 break-words">
+                                    {calc.formulaText}
+                                </p>
+                            </div>
+
+                            <div>
+                                <h3 className="font-semibold text-gray-700 border-b pb-2 mb-3">Variable Breakdown</h3>
+                                <ul className="space-y-2 text-sm">
+                                    {calc.variables.map((v, idx) => (
+                                        <li key={idx} className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                                            <span className="font-medium text-gray-800 min-w-[140px]">{v.name}:</span>
+                                            <span className="text-gray-600 leading-relaxed">{v.desc}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Result Banner */}
+                    {result !== null && (
+                        <div className="bg-green-50 border-t border-green-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div>
+                                <div className="text-sm text-green-800 font-medium mb-1">Strict Formatting Rule:</div>
+                                <div className="text-xs text-green-600 mb-2">{calc.formatRule}</div>
+                                <div className="text-3xl font-bold text-green-700 tracking-tight">{result}</div>
+                            </div>
+                            <button 
+                                onClick={handleCopy}
+                                className="bg-white border border-green-300 text-green-700 hover:bg-green-100 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shrink-0"
+                            >
+                                {copied ? (
+                                    <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg> Copied!</>
+                                ) : (
+                                    <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg> Copy Result</>
+                                )}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeCalcId, setActiveCalcId] = useState(calculatorsConfig[0].id);
+
+            // Find the currently selected calculator based on the nav bar
+            const activeCalc = calculatorsConfig.find(c => c.id === activeCalcId);
+
+            return (
+                <div className="min-h-screen pb-12">
+                    {/* Header */}
+                    <header className="bg-blue-700 text-white shadow-lg py-8 px-4 mb-6">
+                        <div className="max-w-7xl mx-auto flex items-center gap-4">
+                            <div className="bg-blue-500 p-3 rounded-lg shadow-inner">
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21.21 15.89A10 10 0 118 2.83M22 12A10 10 0 0012 2v10h10z"></path></svg>
+                            </div>
+                            <div>
+                                <h1 className="text-3xl font-bold tracking-tight">Managerial Accounting toolkit</h1>
+                                <p className="text-blue-100 mt-1">Solvers, Formulas, and Strict Format Outputs for your course.</p>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content Area - Split Layout */}
+                    <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row gap-6 items-start">
+                        
+                        {/* Side Navigation Menu */}
+                        <aside className="w-full md:w-1/3 lg:w-1/4 shrink-0 bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden sticky top-6">
+                            <div className="bg-slate-50 border-b border-gray-200 px-6 py-4 font-semibold text-gray-800">
+                                Select a Calculator
+                            </div>
+                            <nav className="flex flex-col divide-y divide-gray-100">
+                                {calculatorsConfig.map(calc => (
+                                    <button
+                                        key={calc.id}
+                                        onClick={() => setActiveCalcId(calc.id)}
+                                        className={`text-left px-6 py-4 text-sm transition-all duration-200 flex items-center justify-between ${
+                                            activeCalcId === calc.id 
+                                                ? 'bg-blue-50 border-l-4 border-blue-600 text-blue-800 font-semibold' 
+                                                : 'border-l-4 border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                        }`}
+                                    >
+                                        <span className="pr-4">{calc.title}</span>
+                                        {activeCalcId === calc.id && (
+                                            <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                                        )}
+                                    </button>
+                                ))}
+                            </nav>
+                        </aside>
+
+                        {/* Calculator Display Panel */}
+                        <main className="w-full md:w-2/3 lg:w-3/4 flex-1 space-y-6">
+                            <div className="bg-blue-50 text-blue-800 border border-blue-200 rounded-lg p-4 flex gap-3 shadow-sm">
+                                <svg className="w-6 h-6 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 21h6m-3-3v3m-5.22-8.311c-.43.53-.78 1.13-.78 1.811 0 1.66 1.34 3 3 3h4c1.66 0 3-1.34 3-3 0-.68-.35-1.28-.78-1.81m-5.44-8.88A5 5 0 1112 12c-1.5 0-2.8-.7-3.6-1.8z"></path></svg>
+                                <div className="text-sm leading-relaxed">
+                                    <strong>How to use this tool:</strong> Find the problem type you are working on below. Enter the exact numbers given in your assignment (you can use commas like 10,000 if you want). The calculator will automatically process the formula and format the final answer exactly as your course software demands.
+                                </div>
+                            </div>
+
+                            {/* The "key" property here ensures React clears out the old inputs when you click a new tab! */}
+                            <CalculatorCard key={activeCalc.id} calc={activeCalc} />
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
