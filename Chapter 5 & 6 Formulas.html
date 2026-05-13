@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounting Formula Calculator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f9ff; }
+        .input-field {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid #d1d5db;
+            margin-top: 0.25rem;
+            margin-bottom: 0.75rem;
+            transition: border-color 0.15s ease-in-out;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const SectionCard = ({ title, children }) => (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div className="bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-4">
+                    <h2 className="text-xl font-semibold text-white">{title}</h2>
+                </div>
+                <div className="p-6">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Input = ({ label, value, onChange, type = "number", prefix = "" }) => (
+            <div>
+                <label className="block text-sm font-medium text-gray-700">{label}</label>
+                <div className="relative">
+                    {prefix && <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-500">{prefix}</div>}
+                    <input 
+                        type={type} 
+                        value={value} 
+                        onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
+                        className={`input-field ${prefix ? 'pl-8' : ''}`}
+                    />
+                </div>
+            </div>
+        );
+
+        const FormulaDisplay = ({ title, formula, variables }) => (
+            <div className="bg-blue-50 p-5 rounded-lg border border-blue-100 h-full">
+                <h3 className="font-semibold text-blue-900 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Formula Reference
+                </h3>
+                <div className="mb-4 text-sm bg-white p-3 rounded border border-blue-200 font-mono text-blue-800 overflow-x-auto">
+                    {formula}
+                </div>
+                <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Variables Glossary:</h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                        {variables.map((v, i) => (
+                            <li key={i}><span className="font-medium text-gray-800">{v.name}:</span> {v.desc}</li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        );
+
+        const AnswerBox = ({ label, value, note }) => (
+            <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg my-4">
+                <p className="text-sm text-green-800 font-medium">{label}</p>
+                <p className="text-3xl font-bold text-green-900 mt-1">{value}</p>
+                {note && <p className="text-xs text-green-700 mt-1">{note}</p>}
+            </div>
+        );
+
+        const ExampleProblem = ({ text }) => (
+            <div className="mb-6 bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded-r-lg shadow-sm text-sm text-indigo-800">
+                <strong className="font-semibold text-indigo-900 flex items-center mb-2">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                    Sample Question Format:
+                </strong>
+                <p className="whitespace-pre-line leading-relaxed italic opacity-90">"{text}"</p>
+            </div>
+        );
+
+        const DOLCalculator = () => {
+            const [b1Sales, setB1Sales] = React.useState(100000);
+            const [b1Fixed, setB1Fixed] = React.useState(70000);
+            const [b1Var, setB1Var] = React.useState(10000);
+
+            const [b2Sales, setB2Sales] = React.useState(100000);
+            const [b2Fixed, setB2Fixed] = React.useState(50000);
+            const [b2Var, setB2Var] = React.useState(30000);
+
+            // B1 Calcs
+            const b1CM = b1Sales - b1Var;
+            const b1NOI = b1CM - b1Fixed;
+            const b1DOL = b1NOI !== 0 ? b1CM / b1NOI : 0;
+            const b1DOLPercent = Math.round(b1DOL * 100);
+
+            // B2 Calcs
+            const b2CM = b2Sales - b2Var;
+            const b2NOI = b2CM - b2Fixed;
+            const b2DOL = b2NOI !== 0 ? b2CM / b2NOI : 0;
+            const b2DOLPercent = Math.round(b2DOL * 100);
+
+            // Comparison
+            const betterBiz = b1DOL > b2DOL ? "BIZ#1" : b1DOL < b2DOL ? "BIZ#2" : "EQUAL";
+            const reason = b1DOL > b2DOL ? "FixedCosts" : "VariableCosts"; // Standard assumption: shifting to fixed costs increases DOL
+
+            return (
+                <SectionCard title="1. Degree of Operating Leverage (DOL) & Business Comparison">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2">
+                            <ExampleProblem text={`Compute the Degree of Operating Leverage for Business #1 and Business #2. Show your Answer as a Percent to the Nearest Percent.\n\nWhich Business from Above will Produce more Net Income if Sales Revenues Increase? What is the Reason for your Answer?`} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Business 1 */}
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                    <h3 className="font-bold text-gray-800 mb-3 border-b pb-2">Business #1</h3>
+                                    <Input label="Sales Revenues" value={b1Sales} onChange={setB1Sales} prefix="$" />
+                                    <Input label="Fixed Costs" value={b1Fixed} onChange={setB1Fixed} prefix="$" />
+                                    <Input label="Total Variable Costs" value={b1Var} onChange={setB1Var} prefix="$" />
+                                    <AnswerBox 
+                                        label="DOL (Business #1)" 
+                                        value={`${b1DOLPercent}%`} 
+                                        note="Formatted as Percent to the Nearest Percent" 
+                                    />
+                                </div>
+
+                                {/* Business 2 */}
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                    <h3 className="font-bold text-gray-800 mb-3 border-b pb-2">Business #2</h3>
+                                    <Input label="Sales Revenues" value={b2Sales} onChange={setB2Sales} prefix="$" />
+                                    <Input label="Fixed Costs" value={b2Fixed} onChange={setB2Fixed} prefix="$" />
+                                    <Input label="Total Variable Costs" value={b2Var} onChange={setB2Var} prefix="$" />
+                                    <AnswerBox 
+                                        label="DOL (Business #2)" 
+                                        value={`${b2DOLPercent}%`} 
+                                        note="Formatted as Percent to the Nearest Percent" 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-6 bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                                <h3 className="font-bold text-yellow-900 mb-2">Comparison Answers</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                    <div>
+                                        <p className="text-sm font-medium text-yellow-800 mb-1">Q3: Which produces more Net Income if Sales increase?</p>
+                                        <p className="text-2xl font-bold text-yellow-900">{betterBiz}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-yellow-800 mb-1">Q4: Reason for Answer?</p>
+                                        <p className="text-2xl font-bold text-yellow-900">{reason}</p>
+                                        <p className="text-xs text-yellow-700 mt-1">A higher proportion of Fixed Costs creates higher leverage.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="lg:col-span-1">
+                            <FormulaDisplay 
+                                formula={`Contribution Margin (CM) = Sales - Variable Costs
+
+Net Operating Income (NOI) = CM - Fixed Costs
+
+Degree of Operating Leverage (DOL) = CM / NOI`}
+                                variables={[
+                                    { name: "Sales Revenues", desc: "Total money brought in by selling goods/services." },
+                                    { name: "Fixed Costs", desc: "Costs that do NOT change when sales volume changes (e.g., rent)." },
+                                    { name: "Variable Costs", desc: "Costs that change directly with sales volume." },
+                                    { name: "DOL", desc: "Measures how sensitive Net Income is to a % change in sales. Higher DOL means higher risk/reward." }
+                                ]}
+                            />
+                        </div>
+                    </div>
+                </SectionCard>
+            );
+        };
+
+        const TotalCostsCalculator = () => {
+            const [price, setPrice] = React.useState(55);
+            const [volume, setVolume] = React.useState(550);
+            const [fixed, setFixed] = React.useState(33000);
+            const [vcPerUnit, setVcPerUnit] = React.useState(33);
+
+            const totalCosts = fixed + (vcPerUnit * volume);
+
+            return (
+                <SectionCard title="2. Total Costs Calculator">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2">
+                            <ExampleProblem text={`Compute the Total Costs.\n\nSales price per unit= $55, Sales Volume= 550 units. Fixed Costs = $33,000, Variable Costs per unit= $33.00.\n\nShow your Answer as a Number Only. No Symbols, Commas, or Decimals.`} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input label="Fixed Costs" value={fixed} onChange={setFixed} prefix="$" />
+                                <Input label="Variable Costs per unit" value={vcPerUnit} onChange={setVcPerUnit} prefix="$" />
+                                <Input label="Sales Volume (units)" value={volume} onChange={setVolume} />
+                                <Input label="Sales Price per unit (Not needed for Total Cost)" value={price} onChange={setPrice} prefix="$" />
+                            </div>
+                            <AnswerBox 
+                                label="Total Costs" 
+                                value={Math.round(totalCosts).toString()} 
+                                note="Formatted as Number Only. No Symbols, Commas, or Decimals." 
+                            />
+                        </div>
+                        <div className="lg:col-span-1">
+                            <FormulaDisplay 
+                                formula={`Total Costs = Fixed Costs + (Variable Cost per unit × Sales Volume)`}
+                                variables={[
+                                    { name: "Total Costs", desc: "The sum of all fixed and variable expenses." },
+                                    { name: "Fixed Costs", desc: "Base costs that remain constant." },
+                                    { name: "Variable Cost per unit", desc: "Cost to produce exactly ONE item." },
+                                    { name: "Sales Volume", desc: "Total number of units produced/sold." }
+                                ]}
+                            />
+                        </div>
+                    </div>
+                </SectionCard>
+            );
+        };
+
+        const BreakevenCalculator = () => {
+            const [price, setPrice] = React.useState(200);
+            const [vcPerUnit, setVcPerUnit] = React.useState(45);
+            const [fixed, setFixed] = React.useState(200000);
+
+            const cmPerUnit = price - vcPerUnit;
+            const bepUnits = cmPerUnit > 0 ? fixed / cmPerUnit : 0;
+
+            return (
+                <SectionCard title="3. Breakeven Point Calculator">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2">
+                            <ExampleProblem text={`Compute the Breakeven Point in Units.\n\nSales price is $200 per unit, Variable costs are $45 per unit and Fixed Costs are $200,000.\n\nShow your Answer as a Number Only to the Whole Unit. No Symbols, Commas, or Decimals.`} />
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <Input label="Sales Price per unit" value={price} onChange={setPrice} prefix="$" />
+                                <Input label="Variable Cost per unit" value={vcPerUnit} onChange={setVcPerUnit} prefix="$" />
+                                <Input label="Fixed Costs" value={fixed} onChange={setFixed} prefix="$" />
+                            </div>
+                            <AnswerBox 
+                                label="Breakeven Point in Units" 
+                                value={Math.round(bepUnits).toString()} 
+                                note="Formatted as Number Only to the Whole Unit. No Symbols, Commas, or Decimals." 
+                            />
+                        </div>
+                        <div className="lg:col-span-1">
+                            <FormulaDisplay 
+                                formula={`Contribution Margin per unit = Sales Price - VC per unit
+
+Breakeven Point (Units) = Fixed Costs / Contribution Margin per unit`}
+                                variables={[
+                                    { name: "Breakeven Point", desc: "The exact number of units you must sell to have exactly $0 Net Income (Costs = Revenues)." },
+                                    { name: "Contribution Margin per unit", desc: "The amount of money each unit contributes to paying off fixed costs after its own variable costs are paid." }
+                                ]}
+                            />
+                        </div>
+                    </div>
+                </SectionCard>
+            );
+        };
+
+        const CMRatioCalculator = () => {
+            const [volume, setVolume] = React.useState(1100);
+            const [price, setPrice] = React.useState(110);
+            const [vcPerUnit, setVcPerUnit] = React.useState(77);
+            const [fixed, setFixed] = React.useState(12000);
+
+            const cmPerUnit = price - vcPerUnit;
+            const cmRatio = price > 0 ? cmPerUnit / price : 0;
+            const cmRatioPercent = (cmRatio * 100).toFixed(2);
+
+            return (
+                <SectionCard title="4. Contribution Margin Ratio Calculator">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2">
+                            <ExampleProblem text={`Compute the Contribution Margin Ratio.\n\nSales Volume = 1100 Units, Sales Price =$110 per unit. Variable Costs= $77 per unit and Fixed Costs =$12,000.\n\nShow your Answer as a Percent to the Nearest 2nd Decimal, No Symbols or Commas.`} />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input label="Sales Price per unit" value={price} onChange={setPrice} prefix="$" />
+                                <Input label="Variable Cost per unit" value={vcPerUnit} onChange={setVcPerUnit} prefix="$" />
+                                <Input label="Sales Volume (Not needed for Ratio)" value={volume} onChange={setVolume} />
+                                <Input label="Fixed Costs (Not needed for Ratio)" value={fixed} onChange={setFixed} prefix="$" />
+                            </div>
+                            <AnswerBox 
+                                label="Contribution Margin Ratio" 
+                                value={`${cmRatioPercent}%`} 
+                                note="Formatted as Percent to the Nearest 2nd Decimal, No Symbols or Commas (Ignore the % sign when copying if required)." 
+                            />
+                        </div>
+                        <div className="lg:col-span-1">
+                            <FormulaDisplay 
+                                formula={`Contribution Margin per unit = Sales Price - VC per unit
+
+Contribution Margin Ratio = Contribution Margin per unit / Sales Price`}
+                                variables={[
+                                    { name: "CM Ratio", desc: "The percentage of each sales dollar that remains after covering variable costs. It goes toward covering fixed costs and generating profit." },
+                                    { name: "Note on unused variables", desc: "Volume and Fixed Costs are often given as distractors in CM Ratio problems, as the ratio only depends on Price and Variable Cost per unit." }
+                                ]}
+                            />
+                        </div>
+                    </div>
+                </SectionCard>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = React.useState('dol');
+
+            const tabs = [
+                { id: 'dol', label: '1. Degree of Operating Leverage' },
+                { id: 'total', label: '2. Total Costs' },
+                { id: 'breakeven', label: '3. Breakeven Point' },
+                { id: 'cmratio', label: '4. Contribution Margin Ratio' }
+            ];
+
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'dol': return <DOLCalculator />;
+                    case 'total': return <TotalCostsCalculator />;
+                    case 'breakeven': return <BreakevenCalculator />;
+                    case 'cmratio': return <CMRatioCalculator />;
+                    default: return <DOLCalculator />;
+                }
+            };
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto flex flex-col">
+                    <header className="mb-10 text-center md:text-left bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-500 p-8 rounded-2xl shadow-md text-white">
+                        <h1 className="text-3xl md:text-4xl font-bold mb-3 flex items-center justify-center md:justify-start">
+                            <svg className="w-8 h-8 mr-3 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                            Managerial Accounting Calculator
+                        </h1>
+                        <p className="text-blue-50 text-lg max-w-2xl">Input your specific variables. The answers are formatted exactly as your assignments require.</p>
+                    </header>
+                    
+                    <div className="flex flex-col lg:flex-row gap-8 items-start">
+                        {/* Sidebar Navigation */}
+                        <aside className="w-full lg:w-1/4 bg-white rounded-xl shadow-sm border border-gray-100 p-5 sticky top-8 z-10">
+                            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 px-2">Select a Topic</h2>
+                            <nav className="flex flex-col space-y-2">
+                                {tabs.map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                                            activeTab === tab.id 
+                                            ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-md transform scale-[1.02]' 
+                                            : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </nav>
+                        </aside>
+
+                        {/* Main Content Area */}
+                        <main className="w-full lg:w-3/4">
+                            {/* We use key={activeTab} to force React to re-mount the div and re-trigger the CSS animation on change */}
+                            <div key={activeTab} className="animate-fade-in">
+                                {renderContent()}
+                            </div>
+                        </main>
+                    </div>
+
+                    <footer className="text-center text-gray-500 text-sm mt-12 pb-8">
+                        <p>Designed for fast and accurate accounting homework validation.</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
