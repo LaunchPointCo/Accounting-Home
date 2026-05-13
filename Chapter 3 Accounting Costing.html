@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounting Cost & EUP Calculator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX compilation -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .input-group { margin-bottom: 1rem; }
+        .input-label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
+        .input-field { width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.375rem; border: 1px solid #d1d5db; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); focus:ring-2 focus:ring-indigo-500; outline: none; transition: border-color 0.2s; }
+        .input-field:focus { border-color: #6366f1; ring: 2px; }
+        .card { background: white; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); margin-bottom: 1.5rem; }
+        .section-title { font-size: 1.25rem; font-weight: 600; color: #111827; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        function App() {
+            // Global Settings & Costs
+            const [globalInputs, setGlobalInputs] = useState({
+                beginRM: "",
+                rmPurchased: "",
+                rmIndirect: "",
+                indirectLabor: "",
+                factoryRent: "",
+                factoryTools: "",
+                factoryEquipment: "",
+                mohRatePercent: "",
+                financeCosts: "",
+                cpaCosts: "",
+                marketingCosts: ""
+            });
+
+            // Product A (BMX) Settings
+            const [productA, setProductA] = useState({
+                name: "BMX Bikes",
+                beginWip: "",
+                directRM: "",
+                directLabor: "",
+                unitsCompleted: "",
+                unitsWip: "",
+                wipPercent: "",
+                unitsSold: "",
+                markupPercent: ""
+            });
+
+            // Product B (Mountain Bikes) Settings
+            const [productB, setProductB] = useState({
+                name: "Mountain Bikes",
+                beginWip: "",
+                directRM: "",
+                directLabor: "",
+                unitsCompleted: "",
+                unitsWip: "",
+                wipPercent: "",
+                unitsSold: "",
+                markupPercent: ""
+            });
+
+            // Handle Input Changes (allowing empty strings for blank fields)
+            const handleGlobalChange = (e) => setGlobalInputs({ ...globalInputs, [e.target.name]: e.target.value === '' ? '' : parseFloat(e.target.value) });
+            const handleAChange = (e) => setProductA({ ...productA, [e.target.name]: e.target.value === '' ? '' : parseFloat(e.target.value) });
+            const handleBChange = (e) => setProductB({ ...productB, [e.target.name]: e.target.value === '' ? '' : parseFloat(e.target.value) });
+            const handleNameChange = (e, setter, state) => setter({ ...state, [e.target.name]: e.target.value });
+
+            const calculations = useMemo(() => {
+                // Safely parse all inputs to numbers to prevent errors when fields are blank
+                const g = Object.fromEntries(Object.entries(globalInputs).map(([k, v]) => [k, Number(v) || 0]));
+                const pA = Object.fromEntries(Object.entries(productA).map(([k, v]) => [k, k === 'name' ? v : Number(v) || 0]));
+                const pB = Object.fromEntries(Object.entries(productB).map(([k, v]) => [k, k === 'name' ? v : Number(v) || 0]));
+
+                // Dynamic Totals
+                const actualMOH = g.rmIndirect + g.indirectLabor + g.factoryRent + g.factoryTools + g.factoryEquipment;
+                const periodCosts = g.financeCosts + g.cpaCosts + g.marketingCosts;
+
+                // Raw Materials End Balance
+                const rmEnd = g.beginRM + g.rmPurchased - g.rmIndirect - pA.directRM - pB.directRM;
+
+                // Overhead Calcs
+                const appliedMOHA = pA.directLabor * (g.mohRatePercent / 100);
+                const appliedMOHB = pB.directLabor * (g.mohRatePercent / 100);
+                const totalAppliedMOH = appliedMOHA + appliedMOHB;
+                
+                const mohBalanceDollar = Math.abs(actualMOH - totalAppliedMOH);
+                const mohStatus = actualMOH > totalAppliedMOH ? "UNDER" : "OVER";
+                const mohVariancePercent = actualMOH > 0 ? (mohBalanceDollar / actualMOH) * 100 : 0;
+                const mohReasonable = mohVariancePercent < 5 ? "YES" : "NO";
+
+                // WIP Total Costs
+                const wipTotalA = pA.beginWip + pA.directRM + pA.directLabor + appliedMOHA;
+                const wipTotalB = pB.beginWip + pB.directRM + pB.directLabor + appliedMOHB;
+
+                // Equivalent Units of Production (EUP)
+                const eupA = pA.unitsCompleted + (pA.unitsWip * (pA.wipPercent / 100));
+                const eupB = pB.unitsCompleted + (pB.unitsWip * (pB.wipPercent / 100));
+
+                // Cost Per EUP
+                const costPerEupA = eupA > 0 ? wipTotalA / eupA : 0;
+                const costPerEupB = eupB > 0 ? wipTotalB / eupB : 0;
+
+                // Cost of Goods Manufactured
+                const cogmA = pA.unitsCompleted * costPerEupA;
+                const cogmB = pB.unitsCompleted * costPerEupB;
+
+                // Cost of Goods Sold
+                const cogsA = pA.unitsSold * costPerEupA;
+                const cogsB = pB.unitsSold * costPerEupB;
+                const totalCogs = cogsA + cogsB;
+
+                // Revenues
+                const revA = cogsA * (1 + (pA.markupPercent / 100));
+                const revB = cogsB * (1 + (pB.markupPercent / 100));
+                const totalRev = revA + revB;
+
+                // Profitability
+                const grossProfit = totalRev - totalCogs;
+                const netIncome = grossProfit - periodCosts;
+
+                // Specific Pricing
+                const priceOneB = costPerEupB * (1 + (pB.markupPercent / 100));
+
+                return {
+                    rmEnd, totalAppliedMOH, actualMOH, mohBalanceDollar, 
+                    mohStatus, mohVariancePercent, mohReasonable, wipTotalA, wipTotalB, 
+                    eupA, eupB, costPerEupA, cogmA, costPerEupB, cogmB, totalCogs, 
+                    totalRev, grossProfit, netIncome, priceOneB
+                };
+            }, [globalInputs, productA, productB]);
+
+            // Helper to format answers cleanly
+            const formatAns = (val, decimals = 0) => {
+                if (typeof val === 'string') return val;
+                if (decimals > 0) return val.toFixed(decimals);
+                return Math.round(val).toString();
+            };
+
+            // Helper to copy text to clipboard
+            const copyToClipboard = (text) => {
+                const el = document.createElement('textarea');
+                el.value = text;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+            };
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    <div className="max-w-7xl mx-auto">
+                        {}
+                        <header className="mb-10 bg-gradient-to-r from-blue-700 to-indigo-800 rounded-2xl shadow-lg p-8 text-center md:text-left">
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-3 tracking-tight">Accounting Costing Calculator</h1>
+                            <p className="text-blue-100 text-lg max-w-3xl mb-2">A flexible solver for Job Order / Process Costing hybrid problems. Modify the inputs on the left to recalculate answers instantly.</p>
+                            <div className="mt-4 inline-flex items-center bg-white/10 border border-blue-300/30 rounded-lg py-2 px-4 shadow-sm backdrop-blur-md">
+                                <span className="text-yellow-300 mr-2 text-lg">📌</span>
+                                <p className="text-white text-sm font-medium tracking-wide italic">"Our Business had the Following Costs and Balances..."</p>
+                            </div>
+                        </header>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            
+                            {/* LEFT COLUMN - INPUTS */}
+                            <div className="lg:col-span-5 space-y-6">
+                                
+                                {}
+                                {/* Global Costs Card */}
+                                <div className="card">
+                                    <h2 className="section-title">Global Costs & Overhead</h2>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="input-group">
+                                            <label className="input-label">Begin Raw Materials ($)</label>
+                                            <input type="number" name="beginRM" value={globalInputs.beginRM} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">RM Purchased ($)</label>
+                                            <input type="number" name="rmPurchased" value={globalInputs.rmPurchased} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Indirect RM Used ($)</label>
+                                            <input type="number" name="rmIndirect" value={globalInputs.rmIndirect} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Indirect Labor ($)</label>
+                                            <input type="number" name="indirectLabor" value={globalInputs.indirectLabor} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Factory Rent ($)</label>
+                                            <input type="number" name="factoryRent" value={globalInputs.factoryRent} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Factory Tools ($)</label>
+                                            <input type="number" name="factoryTools" value={globalInputs.factoryTools} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Factory Equipment ($)</label>
+                                            <input type="number" name="factoryEquipment" value={globalInputs.factoryEquipment} onChange={handleGlobalChange} className="input-field" />
+                                            <p className="text-xs text-blue-500 font-medium mt-1">Included in Actual MOH</p>
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">MOH Rate (% of DL)</label>
+                                            <input type="number" name="mohRatePercent" value={globalInputs.mohRatePercent} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        
+                                        <div className="col-span-2 mt-2 mb-1 border-b border-gray-100">
+                                            <h3 className="text-sm font-semibold text-gray-700">Period Costs (Operating Expenses)</h3>
+                                        </div>
+                                        
+                                        <div className="input-group">
+                                            <label className="input-label">Finance Costs ($)</label>
+                                            <input type="number" name="financeCosts" value={globalInputs.financeCosts} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">CPA Costs ($)</label>
+                                            <input type="number" name="cpaCosts" value={globalInputs.cpaCosts} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Marketing Costs ($)</label>
+                                            <input type="number" name="marketingCosts" value={globalInputs.marketingCosts} onChange={handleGlobalChange} className="input-field" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Product A Card */}
+                                <div className="card">
+                                    <div className="flex items-center justify-between border-b-2 border-gray-200 pb-2 mb-4">
+                                        <h2 className="text-xl font-semibold text-gray-900">Product A Setup</h2>
+                                        <input type="text" name="name" value={productA.name} onChange={(e) => handleNameChange(e, setProductA, productA)} className="border border-gray-300 rounded px-2 py-1 text-sm font-medium w-32" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="input-group">
+                                            <label className="input-label">Begin WIP Costs ($)</label>
+                                            <input type="number" name="beginWip" value={productA.beginWip} onChange={handleAChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Direct RM Used ($)</label>
+                                            <input type="number" name="directRM" value={productA.directRM} onChange={handleAChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Direct Labor ($)</label>
+                                            <input type="number" name="directLabor" value={productA.directLabor} onChange={handleAChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Units Completed</label>
+                                            <input type="number" name="unitsCompleted" value={productA.unitsCompleted} onChange={handleAChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">End WIP Units</label>
+                                            <input type="number" name="unitsWip" value={productA.unitsWip} onChange={handleAChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">End WIP % Complete</label>
+                                            <input type="number" name="wipPercent" value={productA.wipPercent} onChange={handleAChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Units Sold</label>
+                                            <input type="number" name="unitsSold" value={productA.unitsSold} onChange={handleAChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Markup over Cost (%)</label>
+                                            <input type="number" name="markupPercent" value={productA.markupPercent} onChange={handleAChange} className="input-field" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Product B Card */}
+                                <div className="card">
+                                    <div className="flex items-center justify-between border-b-2 border-gray-200 pb-2 mb-4">
+                                        <h2 className="text-xl font-semibold text-gray-900">Product B Setup</h2>
+                                        <input type="text" name="name" value={productB.name} onChange={(e) => handleNameChange(e, setProductB, productB)} className="border border-gray-300 rounded px-2 py-1 text-sm font-medium w-32" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="input-group">
+                                            <label className="input-label">Begin WIP Costs ($)</label>
+                                            <input type="number" name="beginWip" value={productB.beginWip} onChange={handleBChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Direct RM Used ($)</label>
+                                            <input type="number" name="directRM" value={productB.directRM} onChange={handleBChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Direct Labor ($)</label>
+                                            <input type="number" name="directLabor" value={productB.directLabor} onChange={handleBChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Units Completed</label>
+                                            <input type="number" name="unitsCompleted" value={productB.unitsCompleted} onChange={handleBChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">End WIP Units</label>
+                                            <input type="number" name="unitsWip" value={productB.unitsWip} onChange={handleBChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">End WIP % Complete</label>
+                                            <input type="number" name="wipPercent" value={productB.wipPercent} onChange={handleBChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Units Sold</label>
+                                            <input type="number" name="unitsSold" value={productB.unitsSold} onChange={handleBChange} className="input-field" />
+                                        </div>
+                                        <div className="input-group">
+                                            <label className="input-label">Markup over Cost (%)</label>
+                                            <input type="number" name="markupPercent" value={productB.markupPercent} onChange={handleBChange} className="input-field" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            {}
+                            {/* RIGHT COLUMN - RESULTS */}
+                            <div className="lg:col-span-7">
+                                {}
+                                <div className="sticky top-6 bg-white rounded-2xl shadow-xl border border-gray-100 p-6 md:p-8">
+                                    <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 pb-4 border-b border-gray-100">
+                                        <h2 className="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-600">Computed Answers</h2>
+                                        <span className="mt-2 md:mt-0 bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-blue-100 shadow-sm">No symbols/decimals unless specified</span>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        {/* Array of questions mapped for clean rendering */}
+                                        {[
+                                            { q: "Ending Balance in the Raw Materials Account", a: formatAns(calculations.rmEnd) },
+                                            { q: "Total Manufacturing Overhead Applied", a: formatAns(calculations.totalAppliedMOH) },
+                                            { q: "Actual Manufacturing Overhead Costs Incurred", a: formatAns(calculations.actualMOH) },
+                                            { q: "Manufacturing Overhead Dollar Account Balance", a: formatAns(calculations.mohBalanceDollar) },
+                                            { q: "Is the MOH Balance OVER or UNDER Applied?", a: formatAns(calculations.mohStatus) },
+                                            { q: "MOH Account Balance Variance Percent", a: formatAns(calculations.mohVariancePercent, 2) },
+                                            { q: "Is the MOH Balance Reasonable (using 5%)?", a: formatAns(calculations.mohReasonable) },
+                                            { q: `Total Work In Process Costs for ${productA.name}`, a: formatAns(calculations.wipTotalA) },
+                                            { q: `Total Work In Process Costs for ${productB.name}`, a: formatAns(calculations.wipTotalB) },
+                                            { q: `Total Equivalent Units of Production for ${productA.name}`, a: formatAns(calculations.eupA) },
+                                            { q: `Total Equivalent Units of Production for ${productB.name}`, a: formatAns(calculations.eupB) },
+                                            { q: `Cost Per Equivalent Unit for ${productA.name}`, a: formatAns(calculations.costPerEupA, 2) },
+                                            { q: `Total Cost of Goods Manufactured (COGM) for ${productA.name}`, a: formatAns(calculations.cogmA) },
+                                            { q: `Cost Per Equivalent Unit for ${productB.name}`, a: formatAns(calculations.costPerEupB, 2) },
+                                            { q: `Total Cost of Goods Manufactured (COGM) for ${productB.name}`, a: formatAns(calculations.cogmB) },
+                                            { q: "Cost of Goods Sold for all Jobs", a: formatAns(calculations.totalCogs) },
+                                            { q: "Total Sales Revenues for All Jobs", a: formatAns(calculations.totalRev) },
+                                            { q: "Total Gross Profit for All Jobs", a: formatAns(calculations.grossProfit) },
+                                            { q: "Total Net Income for All Jobs", a: formatAns(calculations.netIncome) },
+                                            { q: `Amount Charged to Target for One ${productB.name}`, a: formatAns(calculations.priceOneB, 2) },
+                                        ].map((item, idx) => (
+                                            <div key={idx} className="group flex justify-between items-center p-3.5 rounded-xl hover:bg-blue-50/60 border border-transparent hover:border-blue-100 transition-all duration-200">
+                                                <div className="text-sm font-medium text-gray-700 pr-4 flex-1 flex items-start gap-3">
+                                                    <span className="text-blue-500 font-bold mt-0.5">{idx + 1}.</span> 
+                                                    <span>{item.q}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="font-mono font-bold text-lg text-gray-900 min-w-[80px] text-right bg-gray-50 group-hover:bg-white border border-gray-200 group-hover:border-blue-200 px-3 py-1 rounded-lg transition-colors shadow-sm">
+                                                        {item.a}
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => copyToClipboard(item.a)}
+                                                        className="text-gray-400 hover:text-blue-600 focus:outline-none opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md hover:bg-blue-100"
+                                                        title="Copy Answer"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
