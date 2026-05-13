@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relevant Net Income Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Slate 50 */
+        }
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen p-4 md:p-8">
+
+<div class="max-w-6xl mx-auto">
+    
+    <header class="mb-8 text-center md:text-left bg-gradient-to-r from-sky-50 to-blue-50 p-8 rounded-3xl border border-blue-100 shadow-sm">
+        <h1 class="text-3xl md:text-4xl font-bold text-blue-900 mb-2">Segment Analysis Calculator</h1>
+        <p class="text-blue-700 text-lg">Compute Relevant Net Income or (Loss) for Business Segments</p>
+    </header>
+
+    <div class="mb-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 md:p-6 flex items-start">
+        <div class="flex-shrink-0 bg-blue-100 p-2 rounded-lg mr-4 hidden md:block">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg>
+        </div>
+        <div>
+            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">Reference Word Problem</h3>
+            <p class="text-slate-600 italic text-sm md:text-base leading-relaxed">
+                "Compute the Relevant Net Income or (Loss) for a Segment of our Business, Given: <br class="hidden md:block">
+                Sales Revenues = $100,000, Variable Costs = 70%, Avoidable Fixed Costs = $15,000, UN-Avoidable Fixed Costs = $20,000.<br>
+                Show your Answer as a number only, NO Commas, Decimals, or Symbols. Show a negative number in Parens like this (1000)."
+            </p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Left Column: Calculator -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-xl font-semibold mb-6 flex items-center text-indigo-700">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Input Data
+                </h2>
+                
+                <form id="calculator-form" class="space-y-5">
+                    
+                    <!-- Sales Revenues -->
+                    <div>
+                        <label for="sales" class="block text-sm font-medium text-slate-700 mb-1">Sales Revenues ($)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-slate-500 sm:text-sm">$</span>
+                            </div>
+                            <input type="number" id="sales" class="pl-7 block w-full rounded-lg border-slate-300 border bg-slate-50 p-2.5 text-slate-900 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="e.g. 100000">
+                        </div>
+                    </div>
+
+                    <!-- Variable Costs -->
+                    <div class="p-4 bg-slate-50 rounded-lg border border-slate-100">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Variable Costs</label>
+                        <div class="flex space-x-4 mb-3">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="vc_type" value="percentage" checked class="form-radio text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-slate-600">Percentage (%)</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="vc_type" value="amount" class="form-radio text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-slate-600">Dollar Amount ($)</span>
+                            </label>
+                        </div>
+                        <div class="relative">
+                            <input type="number" id="vc_value" class="block w-full rounded-lg border-slate-300 border bg-white p-2.5 text-slate-900 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="e.g. 70">
+                            <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <span id="vc_symbol" class="text-slate-500 sm:text-sm">%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Avoidable Fixed Costs -->
+                    <div>
+                        <label for="avoidable" class="block text-sm font-medium text-slate-700 mb-1">Avoidable Fixed Costs ($)</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-slate-500 sm:text-sm">$</span>
+                            </div>
+                            <input type="number" id="avoidable" class="pl-7 block w-full rounded-lg border-slate-300 border bg-slate-50 p-2.5 text-slate-900 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="e.g. 15000">
+                        </div>
+                    </div>
+
+                    <!-- Unavoidable Fixed Costs -->
+                    <div>
+                        <label for="unavoidable" class="block text-sm font-medium text-slate-700 mb-1 flex justify-between">
+                            <span>Un-avoidable Fixed Costs ($)</span>
+                            <span class="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Irrelevant to formula</span>
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-slate-500 sm:text-sm">$</span>
+                            </div>
+                            <input type="number" id="unavoidable" class="pl-7 block w-full rounded-lg border-slate-300 border bg-slate-50 p-2.5 text-slate-900 focus:ring-indigo-500 focus:border-indigo-500 transition-colors" placeholder="e.g. 20000">
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">* Included for completeness, but excluded from relevant net income.</p>
+                    </div>
+
+                </form>
+            </div>
+
+            <!-- Result Card -->
+            <div class="bg-indigo-600 rounded-2xl shadow-lg p-6 text-white text-center transform transition-transform hover:scale-[1.01] w-full block">
+                <h3 class="text-indigo-200 text-sm font-semibold tracking-wider uppercase mb-2">Relevant Net Income / (Loss)</h3>
+                
+                <!-- Display Area matching strict constraints -->
+                <div class="text-5xl font-bold font-mono tracking-tight my-4" id="final-result">
+                    0
+                </div>
+                
+                <p class="text-indigo-200 text-sm mt-4">
+                    Formatted as requested: No commas, no decimals, no symbols.<br>Negative numbers in parentheses.
+                </p>
+            </div>
+        </div>
+
+        <!-- Right Column: Formulas & Explanations -->
+        <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Formula Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+                <h2 class="text-xl font-semibold mb-6 flex items-center text-slate-800">
+                    <svg class="w-6 h-6 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    Master Formulas
+                </h2>
+                
+                <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 mb-6">
+                    <p class="text-sm text-slate-500 uppercase tracking-wide font-semibold mb-2">Step 1: Find Contribution Margin</p>
+                    <div class="font-mono text-slate-800 text-sm md:text-base mb-2">
+                        <span class="text-indigo-600">Contribution Margin</span> = Sales Revenues - Variable Costs
+                    </div>
+                </div>
+
+                <div class="bg-emerald-50 rounded-xl p-5 border border-emerald-200">
+                    <p class="text-sm text-emerald-600 uppercase tracking-wide font-semibold mb-2">Step 2: Find Relevant Net Income</p>
+                    <div class="font-mono text-slate-800 text-sm md:text-base font-semibold">
+                        <span class="text-emerald-700">Relevant Net Income</span> = Contribution Margin - Avoidable Fixed Costs
+                    </div>
+                    <div class="mt-3 text-sm text-slate-600 border-t border-emerald-200 pt-3">
+                        <strong>Combined Formula:</strong><br>
+                        Relevant Net Income = Sales Revenues - Variable Costs - Avoidable Fixed Costs
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variables Explanation Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
+                <h2 class="text-xl font-semibold mb-6 flex items-center text-slate-800">
+                    <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                    Variable Dictionary
+                </h2>
+                
+                <div class="space-y-4">
+                    
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 mr-3"></div>
+                        <div>
+                            <h4 class="text-slate-900 font-semibold">Sales Revenues</h4>
+                            <p class="text-slate-600 text-sm mt-1">The total amount of money generated by selling products or services within this specific segment. It's the starting point for profitability.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-indigo-500 mt-2 mr-3"></div>
+                        <div>
+                            <h4 class="text-slate-900 font-semibold">Variable Costs</h4>
+                            <p class="text-slate-600 text-sm mt-1">Costs that change directly in proportion to your sales volume (e.g., direct materials, direct labor, shipping). This calculator lets you enter this as a straight dollar amount OR a percentage of sales.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500 mt-2 mr-3"></div>
+                        <div>
+                            <h4 class="text-slate-900 font-semibold">Avoidable Fixed Costs</h4>
+                            <p class="text-slate-600 text-sm mt-1">Fixed costs that would disappear if you decided to shut down or drop this segment (e.g., the segment manager's salary, advertising specific to this product). <strong>These are highly relevant</strong> to segment decisions.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start opacity-75">
+                        <div class="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 mr-3"></div>
+                        <div>
+                            <h4 class="text-slate-900 font-semibold line-through decoration-amber-500">Un-avoidable Fixed Costs</h4>
+                            <p class="text-slate-600 text-sm mt-1">General company costs allocated to this segment that will continue regardless of whether you keep or drop the segment (e.g., CEO's salary, general factory rent). <strong>We ignore these</strong> when calculating "Relevant" Net Income because they don't change your decision.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // Input Elements
+        const salesInput = document.getElementById('sales');
+        const vcValueInput = document.getElementById('vc_value');
+        const avoidableInput = document.getElementById('avoidable');
+        const unavoidableInput = document.getElementById('unavoidable');
+        const vcRadios = document.getElementsByName('vc_type');
+        const vcSymbol = document.getElementById('vc_symbol');
+        const finalResult = document.getElementById('final-result');
+
+        // Function to format the output strictly based on rules:
+        // No Commas, Decimals, or Symbols. Negative in Parens: (1000)
+        function formatAccountingNumber(num) {
+            // Round to remove any trailing decimals from JS float math
+            let roundedNum = Math.round(num);
+            
+            if (roundedNum < 0) {
+                // Return positive absolute value wrapped in parens
+                return `(${Math.abs(roundedNum)})`;
+            } else {
+                // Return positive number as a string (no commas, no decimals)
+                return `${roundedNum}`;
+            }
+        }
+
+        // Main Calculation Logic
+        function calculate() {
+            // Parse inputs, defaulting to 0 if empty
+            const sales = parseFloat(salesInput.value) || 0;
+            const vcValue = parseFloat(vcValueInput.value) || 0;
+            const avoidable = parseFloat(avoidableInput.value) || 0;
+            
+            // Unavoidable is parsed but mathematically ignored for RELEVANT income
+            const unavoidable = parseFloat(unavoidableInput.value) || 0; 
+            
+            // Determine Variable Cost logic (Percentage vs Amount)
+            let isPercentage = true;
+            for (const radio of vcRadios) {
+                if (radio.checked && radio.value === 'amount') {
+                    isPercentage = false;
+                    break;
+                }
+            }
+
+            // Calculate actual Variable Cost amount
+            let actualVariableCost = 0;
+            if (isPercentage) {
+                actualVariableCost = sales * (vcValue / 100);
+            } else {
+                actualVariableCost = vcValue;
+            }
+
+            // Core Formula: Relevant Net Income
+            const contributionMargin = sales - actualVariableCost;
+            const relevantNetIncome = contributionMargin - avoidable;
+
+            // Render Output
+            finalResult.textContent = formatAccountingNumber(relevantNetIncome);
+        }
+
+        // Event Listeners to trigger calculation on any input change
+        const inputs = [salesInput, vcValueInput, avoidableInput, unavoidableInput];
+        inputs.forEach(input => {
+            input.addEventListener('input', calculate);
+        });
+
+        // Event Listeners for Radio Button toggle (update symbol and recalculate)
+        vcRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'percentage') {
+                    vcSymbol.textContent = '%';
+                    vcSymbol.className = 'text-slate-500 sm:text-sm';
+                } else {
+                    vcSymbol.textContent = '$';
+                    // Optional styling adjustment if symbol changes
+                }
+                calculate();
+            });
+        });
+
+        // Run initial calculation to format the default values on load
+        calculate();
+    });
+</script>
+
+</body>
+</html>
