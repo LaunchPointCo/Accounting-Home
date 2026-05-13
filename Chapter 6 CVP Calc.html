@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVP & Scenario Accounting Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .input-group { margin-bottom: 0.75rem; }
+        .input-label { display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
+        .input-field { 
+            width: 100%; padding: 0.5rem; border: 1px solid #D1D5DB; border-radius: 0.375rem; 
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); outline: none; transition: border-color 0.15s ease-in-out;
+        }
+        .input-field:focus { border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+        
+        /* Updated Blue Theming for Answers */
+        .result-card { 
+            background: #ffffff; border: 1px solid #DBEAFE; border-left: 4px solid #3B82F6; 
+            border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; 
+            box-shadow: 0 1px 3px rgba(59, 130, 246, 0.1); transition: all 0.2s ease; 
+        }
+        .result-card:hover { 
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); 
+            transform: translateY(-2px); border-left-color: #1D4ED8; 
+        }
+        .result-title { font-size: 0.8rem; color: #3B82F6; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .result-value { font-size: 1.5rem; font-weight: 700; color: #1E3A8A; font-family: monospace; margin-top: 0.25rem; }
+        .highlight-value { color: #1D4ED8; }
+        
+        /* Inject blue into left column input section headers */
+        .shadow-sm h2 { 
+            color: #1E3A8A; border-bottom: 2px solid #DBEAFE !important; font-weight: 700;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl p-8 shadow-lg text-white">
+            <h1 class="text-3xl font-bold flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                CVP & Scenario Accounting Calculator
+            </h1>
+            <p class="text-blue-50 mt-4 text-xl font-medium italic bg-blue-800/30 inline-block px-4 py-2 rounded-lg border border-blue-400/30">
+                "Our Business had the Following Info..."
+            </p>
+            <p class="text-blue-100 mt-4 text-lg">Instantly calculates Contribution Margins, Break-Even Points, and Scenario Net Incomes. Leave fields blank to treat them as zero.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- LEFT COLUMN: INPUTS -->
+            <div class="lg:col-span-7 space-y-6">
+                
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold border-b pb-2 mb-4">1. Base Sales Information</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label class="input-label">Sales Price per Unit ($)</label>
+                            <input type="number" id="salesPrice" class="input-field" placeholder="e.g. 200" value="" step="any">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Monthly Sales Volume (Units)</label>
+                            <input type="number" id="salesVolume" class="input-field" placeholder="e.g. 500" value="" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold border-b pb-2 mb-4">2. Variable Costs (Per Unit)</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="input-group">
+                            <label class="input-label">Direct Materials</label>
+                            <input type="number" id="vc1" class="input-field" placeholder="e.g. 60" value="" step="any">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Variable MOH</label>
+                            <input type="number" id="vc2" class="input-field" placeholder="e.g. 20" value="" step="any">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Sales Related Costs</label>
+                            <input type="number" id="vc3" class="input-field" placeholder="e.g. 10" value="" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold border-b pb-2 mb-4">3. Fixed Costs (Per Month)</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="input-group">
+                            <label class="input-label">Building Rent</label>
+                            <input type="number" id="fc1" class="input-field" placeholder="e.g. 6000" value="" step="any">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Employee Salaries</label>
+                            <input type="number" id="fc2" class="input-field" placeholder="e.g. 5000" value="" step="any">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Advertising Costs</label>
+                            <input type="number" id="fc3" class="input-field" placeholder="e.g. 4000" value="" step="any">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold border-b pb-2 mb-4">4. Scenarios & Targets</h2>
+                    <div class="grid grid-cols-1 gap-6">
+                        <div class="input-group bg-blue-50 p-4 rounded-lg border border-blue-100">
+                            <label class="input-label text-blue-800">Target Net Income Profit ($)</label>
+                            <input type="number" id="targetIncome" class="input-field border-blue-200" placeholder="e.g. 15000" value="" step="any">
+                        </div>
+                        
+                        <div class="p-4 rounded-lg border border-slate-200 bg-slate-50">
+                            <h3 class="font-medium text-sm mb-3">Proposal #1 Settings</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="input-group mb-0">
+                                    <label class="input-label">Change in Fixed Costs ($)</label>
+                                    <input type="number" id="prop1FixedChange" class="input-field" placeholder="e.g. 4000" value="" step="any" title="e.g., Increase advertising from 4000 to 8000 means a +4000 change">
+                                    <p class="text-xs text-slate-500 mt-1">E.g. +4000 for ad increase</p>
+                                </div>
+                                <div class="input-group mb-0">
+                                    <label class="input-label">Change in Sales Volume (%)</label>
+                                    <input type="number" id="prop1VolChange" class="input-field" placeholder="e.g. 10" value="" step="any">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-lg border border-slate-200 bg-slate-50">
+                            <h3 class="font-medium text-sm mb-3">Proposal #2 Settings</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="input-group mb-0">
+                                    <label class="input-label">Change in Sales Price (%)</label>
+                                    <input type="number" id="prop2PriceChange" class="input-field" placeholder="e.g. 10" value="" step="any">
+                                </div>
+                                <div class="input-group mb-0">
+                                    <label class="input-label">Change in Sales Volume (%)</label>
+                                    <input type="number" id="prop2VolChange" class="input-field" placeholder="e.g. -20" value="" step="any" title="Use negative numbers for a decrease">
+                                    <p class="text-xs text-slate-500 mt-1">E.g. -20 for a decrease</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="lg:col-span-5">
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-blue-200 border-t-4 border-t-blue-600 sticky top-6">
+                    <h2 class="text-xl font-bold border-b-2 border-blue-100 pb-3 mb-4 text-blue-900 flex justify-between items-center">
+                        Answers / Outputs
+                        <span class="text-xs font-bold text-blue-700 bg-blue-100 px-3 py-1 rounded-full shadow-inner animate-pulse">Live Updates</span>
+                    </h2>
+                    
+                    <div class="space-y-3">
+                        <div class="result-card">
+                            <div class="result-title">1. Contribution Margin per Unit (2 decimals)</div>
+                            <div class="result-value" id="ans1">-</div>
+                        </div>
+                        
+                        <div class="result-card">
+                            <div class="result-title">2. Contribution Margin Ratio % (2 decimals)</div>
+                            <div class="result-value" id="ans2">-</div>
+                        </div>
+
+                        <div class="result-card">
+                            <div class="result-title">3. Break-Even Point in Units (Full units)</div>
+                            <div class="result-value" id="ans3">-</div>
+                        </div>
+
+                        <div class="result-card">
+                            <div class="result-title">4. Target Net Income ($<span id="lblTarget"></span>) Units</div>
+                            <div class="result-value" id="ans4">-</div>
+                        </div>
+
+                        <div class="result-card">
+                            <div class="result-title">5. Net Income (Current)</div>
+                            <div class="result-value" id="ans5">-</div>
+                        </div>
+
+                        <div class="result-card">
+                            <div class="result-title">6. Revised Net Income (Proposal 1)</div>
+                            <div class="result-value" id="ans6">-</div>
+                        </div>
+
+                        <div class="result-card">
+                            <div class="result-title">7. Revised Net Income (Proposal 2)</div>
+                            <div class="result-value" id="ans7">-</div>
+                        </div>
+
+                        <div class="result-card bg-blue-50 border-blue-200">
+                            <div class="result-title text-blue-800">8. Best Scenario (A, B, or C)</div>
+                            <div class="result-value highlight-value" id="ans8">-</div>
+                            <div class="text-xs text-blue-600 mt-1">A=Current, B=Prop-1, C=Prop-2</div>
+                        </div>
+
+                        <div class="result-card bg-green-50 border-green-200">
+                            <div class="result-title text-green-800">9. Dollar Benefit of Best Scenario</div>
+                            <div class="result-value text-green-700" id="ans9">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Formatter adhering to strictly to requirements:
+        // No symbols ($ , %), no commas, parens for negative numbers.
+        function formatVal(value, decimals) {
+            if (isNaN(value)) return "0";
+            let isNegative = value < 0;
+            // Round properly based on the decimals requested
+            let factor = Math.pow(10, decimals);
+            let rounded = Math.round(Math.abs(value) * factor) / factor;
+            let strValue = rounded.toFixed(decimals);
+            
+            if (isNegative) {
+                return `(${strValue})`;
+            }
+            return strValue;
+        }
+
+        // Retrieve numeric value safely from input
+        function getNum(id) {
+            let val = parseFloat(document.getElementById(id).value);
+            return isNaN(val) ? 0 : val;
+        }
+
+        function calculateCVP() {
+            // 1. Get Base Variables
+            let price = getNum('salesPrice');
+            let vol = getNum('salesVolume');
+            
+            // Variable Costs
+            let vc1 = getNum('vc1');
+            let vc2 = getNum('vc2');
+            let vc3 = getNum('vc3');
+            let totalVC = vc1 + vc2 + vc3;
+
+            // Fixed Costs
+            let fc1 = getNum('fc1');
+            let fc2 = getNum('fc2');
+            let fc3 = getNum('fc3');
+            let totalFC = fc1 + fc2 + fc3;
+
+            // Scenario Parameters
+            let targetIncome = getNum('targetIncome');
+            document.getElementById('lblTarget').innerText = targetIncome;
+
+            let prop1FixedChange = getNum('prop1FixedChange');
+            let prop1VolChangePct = getNum('prop1VolChange') / 100;
+
+            let prop2PriceChangePct = getNum('prop2PriceChange') / 100;
+            let prop2VolChangePct = getNum('prop2VolChange') / 100;
+
+            // Calculations
+            // Q1. Contribution Margin per Unit
+            let cmUnit = price - totalVC;
+            document.getElementById('ans1').innerText = formatVal(cmUnit, 2);
+
+            // Q2. Contribution Margin Ratio % (as a whole number % with 2 decimals)
+            // e.g. 55% should be 55.00
+            let cmRatio = price !== 0 ? (cmUnit / price) * 100 : 0;
+            document.getElementById('ans2').innerText = formatVal(cmRatio, 2);
+
+            // Q3. Break-Even Point in Units (Always round up in accounting to fully cover costs)
+            let bepUnits = cmUnit !== 0 ? Math.ceil(totalFC / cmUnit) : 0;
+            document.getElementById('ans3').innerText = formatVal(bepUnits, 0);
+
+            // Q4. Target Net Income Units (Always round up in accounting to guarantee hitting target)
+            let targetUnits = cmUnit !== 0 ? Math.ceil((totalFC + targetIncome) / cmUnit) : 0;
+            document.getElementById('ans4').innerText = formatVal(targetUnits, 0);
+
+            // Q5. Current Net Income
+            let currentNI = (vol * cmUnit) - totalFC;
+            document.getElementById('ans5').innerText = formatVal(currentNI, 0);
+
+            // Q6. Proposal 1 Net Income
+            // Increased Fixed Cost & Volume + %
+            let prop1Vol = vol * (1 + prop1VolChangePct);
+            let prop1FC = totalFC + prop1FixedChange;
+            let prop1NI = (prop1Vol * cmUnit) - prop1FC;
+            document.getElementById('ans6').innerText = formatVal(prop1NI, 0);
+
+            // Q7. Proposal 2 Net Income
+            // Increased Price & Decreased Volume
+            let prop2Price = price * (1 + prop2PriceChangePct);
+            let prop2CMUnit = prop2Price - totalVC;
+            let prop2Vol = vol * (1 + prop2VolChangePct);
+            let prop2NI = (prop2Vol * prop2CMUnit) - totalFC;
+            document.getElementById('ans7').innerText = formatVal(prop2NI, 0);
+
+            // Q8. Best Scenario (A, B, or C)
+            let maxNI = Math.max(currentNI, prop1NI, prop2NI);
+            let bestScenarioStr = "";
+            if (maxNI === currentNI) bestScenarioStr = "A";
+            else if (maxNI === prop1NI) bestScenarioStr = "B";
+            else bestScenarioStr = "C";
+            document.getElementById('ans8').innerText = bestScenarioStr;
+
+            // Q9. Dollar Benefit
+            // Difference between the best scenario and the current baseline.
+            // If current is the best, benefit is 0.
+            let benefit = maxNI - currentNI;
+            document.getElementById('ans9').innerText = formatVal(benefit, 0);
+        }
+
+        // Attach event listeners to all input fields to recalculate on typing
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('input', calculateCVP);
+        });
+
+        // Calculate initially on load
+        window.onload = calculateCVP;
+
+    </script>
+</body>
+</html>

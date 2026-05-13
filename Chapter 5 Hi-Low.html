@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>High-Low Method Calculator</title>
+  
+  <!-- Load Tailwind CSS for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Load React and ReactDOM for components and UI -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  
+  <!-- Load Babel to compile JSX syntax in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-slate-50">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+
+    // Custom SVG Icons replacing lucide-react to ensure zero dependencies
+    const Plus = ({ size = 24, className = "" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    );
+    const Trash2 = ({ size = 24, className = "" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+    );
+    const RotateCcw = ({ size = 24, className = "" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+    );
+    const CalculatorIcon = ({ size = 24, className = "" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><path d="M16 10h.01"></path><path d="M12 10h.01"></path><path d="M8 10h.01"></path><path d="M12 14h.01"></path><path d="M8 14h.01"></path><path d="M12 18h.01"></path><path d="M8 18h.01"></path></svg>
+    );
+    const Info = ({ size = 24, className = "" }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    );
+
+    const DEFAULT_CATEGORIES = [
+      { id: 'c1', name: 'Direct Materials' },
+      { id: 'c2', name: 'Direct Labor' },
+      { id: 'c3', name: 'Selling Related Costs' },
+      { id: 'c4', name: 'Building Rent & Costs' }
+    ];
+
+    const DEFAULT_DATA = [
+      { id: 'p1', name: 'Period 1', units: '', costs: { c1: '', c2: '', c3: '', c4: '' } },
+      { id: 'p2', name: 'Period 2', units: '', costs: { c1: '', c2: '', c3: '', c4: '' } }
+    ];
+
+    function App() {
+      const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+      const [data, setData] = useState(DEFAULT_DATA);
+      
+      // Custom Scenario Inputs (Starts empty)
+      const [q1Units, setQ1Units] = useState('');
+      const [q2Units, setQ2Units] = useState('');
+      const [q2Price, setQ2Price] = useState('');
+      const [q3Units, setQ3Units] = useState('');
+      const [q3TargetNetIncome, setQ3TargetNetIncome] = useState('');
+
+      const resetToDefault = () => {
+        setCategories(DEFAULT_CATEGORIES);
+        setData([
+          { id: 'p1', name: 'Period 1', units: '', costs: { c1: '', c2: '', c3: '', c4: '' } },
+          { id: 'p2', name: 'Period 2', units: '', costs: { c1: '', c2: '', c3: '', c4: '' } }
+        ]);
+        setQ1Units('');
+        setQ2Units('');
+        setQ2Price('');
+        setQ3Units('');
+        setQ3TargetNetIncome('');
+      };
+
+      const handleDataChange = (periodId, field, value) => {
+        setData(prev => prev.map(p => {
+          if (p.id === periodId) {
+            if (field === 'name' || field === 'units') {
+              return { ...p, [field]: value };
+            } else {
+              return { ...p, costs: { ...p.costs, [field]: value } };
+            }
+          }
+          return p;
+        }));
+      };
+
+      const handleCategoryNameChange = (categoryId, newName) => {
+        setCategories(prev => prev.map(c => c.id === categoryId ? { ...c, name: newName } : c));
+      };
+
+      const addPeriod = () => {
+        const newId = `p${Date.now()}`;
+        setData(prev => [...prev, { id: newId, name: `Period ${prev.length + 1}`, units: '', costs: {} }]);
+      };
+
+      const removePeriod = (id) => {
+        setData(prev => prev.filter(p => p.id !== id));
+      };
+
+      const analysis = useMemo(() => {
+        const validData = data.filter(d => !isNaN(Number(d.units)) && d.units !== '');
+        
+        let high = { name: '-', units: 0, costs: {} };
+        let low = { name: '-', units: 0, costs: {} };
+        let unitDiff = 0;
+
+        if (validData.length > 0) {
+          high = validData[0];
+          low = validData[0];
+          validData.forEach(p => {
+            const u = Number(p.units);
+            if (u > Number(high.units)) high = p;
+            if (u < Number(low.units)) low = p;
+          });
+          unitDiff = Number(high.units) - Number(low.units);
+        }
+
+        const formulas = categories.map(cat => {
+          let variableCost = 0;
+          let fixedCost = 0;
+
+          if (unitDiff !== 0) {
+            const highCost = Number(high.costs[cat.id]) || 0;
+            const lowCost = Number(low.costs[cat.id]) || 0;
+            const costDiff = highCost - lowCost;
+            
+            variableCost = costDiff / unitDiff;
+            fixedCost = highCost - (variableCost * Number(high.units));
+          }
+          
+          return {
+            id: cat.id,
+            name: cat.name,
+            vc: variableCost || 0,
+            fc: fixedCost || 0
+          };
+        });
+
+        const totalVC = formulas.reduce((sum, f) => sum + f.vc, 0);
+        const totalFC = formulas.reduce((sum, f) => sum + f.fc, 0);
+
+        return {
+          high,
+          low,
+          formulas,
+          totalVC,
+          totalFC,
+          hasEnoughData: validData.length >= 2 && unitDiff !== 0
+        };
+      }, [data, categories]);
+
+      // Format Helpers
+      const formatCostFormula = (fc, vc) => {
+        const roundedVC = Math.round(vc * 100) / 100;
+        const roundedFC = Math.round(fc * 100) / 100;
+        const sign = roundedVC >= 0 ? '+' : '';
+        return `${roundedFC}${sign}${roundedVC}u`;
+      };
+
+      const formatNumberOnly = (num) => Math.round(num).toString();
+      const formatPenny = (num) => (Math.round(num * 100) / 100).toFixed(2);
+
+      let ansQ1 = null, ansQ2 = null, ansQ3 = null;
+      const { totalFC, totalVC } = analysis;
+      
+      // Q1: Total Cost to Produce X units
+      if (q1Units !== '') {
+        ansQ1 = totalFC + (totalVC * Number(q1Units));
+      }
+      
+      // Q2: Estimated Net Income for X units at Y price
+      if (q2Units !== '' && q2Price !== '') {
+        const totalRevQ2 = Number(q2Units) * Number(q2Price);
+        const totalCostQ2 = totalFC + (totalVC * Number(q2Units));
+        ansQ2 = totalRevQ2 - totalCostQ2;
+      }
+      
+      // Q3: Required Sales Price for X units to make Y net income
+      if (q3Units !== '' && q3TargetNetIncome !== '' && Number(q3Units) !== 0) {
+        const targetCostQ3 = totalFC + (totalVC * Number(q3Units));
+        const requiredRevenue = targetCostQ3 + Number(q3TargetNetIncome);
+        ansQ3 = requiredRevenue / Number(q3Units);
+      }
+
+      return (
+        <div className="min-h-screen text-slate-800 p-4 md:p-8 font-sans">
+          <div className="max-w-6xl mx-auto space-y-6">
+            
+            {/* Header */}
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <CalculatorIcon className="text-blue-600" size={28} />
+                  High-Low Method Calculator
+                </h1>
+                <div className="mt-3 bg-blue-50 border-l-4 border-blue-500 p-2.5 rounded-r-md shadow-sm inline-block">
+                  <p className="text-blue-800 text-sm font-medium italic">"Our Business is Planning the Budgets and Costs..."</p>
+                </div>
+              </div>
+              <button 
+                onClick={resetToDefault}
+                className="mt-4 md:mt-0 flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors text-sm font-medium"
+              >
+                <RotateCcw size={16} />
+                Clear All Data
+              </button>
+            </header>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              
+              { }
+              <div className="lg:col-span-8 space-y-6">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <div className="p-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                    <h2 className="font-semibold text-slate-800">Historical Data Entry</h2>
+                    <button 
+                      onClick={addPeriod}
+                      className="flex items-center gap-1 text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md transition-colors"
+                    >
+                      <Plus size={16} /> Add Period
+                    </button>
+                  </div>
+                  
+                  <div className="overflow-x-auto p-4">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-slate-500 uppercase bg-slate-50">
+                        <tr>
+                          <th className="px-3 py-2 rounded-tl-lg">Period</th>
+                          <th className="px-3 py-2">Units Produced</th>
+                          {categories.map((cat) => (
+                            <th key={cat.id} className="px-3 py-2 min-w-[150px]">
+                              <input 
+                                type="text" 
+                                value={cat.name}
+                                onChange={(e) => handleCategoryNameChange(cat.id, e.target.value)}
+                                className="bg-transparent border-b border-dashed border-slate-400 focus:border-blue-500 focus:outline-none w-full"
+                              />
+                            </th>
+                          ))}
+                          <th className="px-3 py-2 rounded-tr-lg"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.map((row) => (
+                          <tr key={row.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                            <td className="px-3 py-2">
+                              <input 
+                                type="text" 
+                                value={row.name}
+                                onChange={(e) => handleDataChange(row.id, 'name', e.target.value)}
+                                className="w-24 p-1.5 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input 
+                                type="number" 
+                                value={row.units}
+                                onChange={(e) => handleDataChange(row.id, 'units', e.target.value)}
+                                className="w-24 p-1.5 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                              />
+                            </td>
+                            {categories.map(cat => (
+                              <td key={cat.id} className="px-3 py-2">
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1.5 text-slate-400">$</span>
+                                  <input 
+                                    type="number" 
+                                    value={row.costs[cat.id] || ''}
+                                    onChange={(e) => handleDataChange(row.id, cat.id, e.target.value)}
+                                    className="w-full pl-6 p-1.5 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                                  />
+                                </div>
+                              </td>
+                            ))}
+                            <td className="px-3 py-2 text-right">
+                              <button 
+                                onClick={() => removePeriod(row.id)}
+                                className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                { }
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                  <h2 className="font-semibold text-slate-800 mb-4">Scenario Parameters</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    {/* Q1 Inputs */}
+                    <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                      <h3 className="text-sm font-medium text-slate-700">Estimate Total Cost</h3>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Target Units</label>
+                        <input 
+                          type="number" 
+                          value={q1Units}
+                          onChange={e => setQ1Units(e.target.value)}
+                          className="w-full p-2 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Q2 Inputs */}
+                    <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                      <h3 className="text-sm font-medium text-slate-700">Estimate Net Income</h3>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Target Units</label>
+                        <input 
+                          type="number" 
+                          value={q2Units}
+                          onChange={e => setQ2Units(e.target.value)}
+                          className="w-full p-2 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Sales Price / Unit ($)</label>
+                        <input 
+                          type="number" 
+                          value={q2Price}
+                          onChange={e => setQ2Price(e.target.value)}
+                          className="w-full p-2 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Q3 Inputs */}
+                    <div className="space-y-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                      <h3 className="text-sm font-medium text-slate-700">Required Sales Price</h3>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Target Units</label>
+                        <input 
+                          type="number" 
+                          value={q3Units}
+                          onChange={e => setQ3Units(e.target.value)}
+                          className="w-full p-2 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Target Net Income ($)</label>
+                        <input 
+                          type="number" 
+                          value={q3TargetNetIncome}
+                          onChange={e => setQ3TargetNetIncome(e.target.value)}
+                          className="w-full p-2 border border-slate-200 rounded focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              { }
+              <div className="lg:col-span-4 space-y-6">
+                
+                {!analysis.hasEnoughData && (
+                  <div className="bg-amber-50 text-amber-700 p-4 rounded-lg border border-amber-100 flex items-start gap-3">
+                    <Info className="shrink-0 mt-0.5" size={18} />
+                    <p className="text-sm">Enter at least two periods with different unit counts to calculate active data.</p>
+                  </div>
+                )}
+
+                {/* Method Identification Box */}
+                <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
+                  <h3 className="text-blue-900 font-semibold mb-3 text-sm uppercase tracking-wider">High-Low Identification</h3>
+                  <div className="space-y-2 text-sm text-blue-800">
+                    <div className="flex justify-between">
+                      <span>High Activity:</span>
+                      <span className="font-semibold">{analysis.high.name} ({Number(analysis.high.units).toLocaleString()} units)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Low Activity:</span>
+                      <span className="font-semibold">{analysis.low.name} ({Number(analysis.low.units).toLocaleString()} units)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Answers Box */}
+                <div className="bg-white rounded-xl shadow-sm border-2 border-emerald-500 overflow-hidden">
+                  <div className="bg-emerald-500 p-4 text-white">
+                    <h2 className="font-bold text-lg">Final Answers</h2>
+                    <p className="text-emerald-100 text-sm opacity-90">Formatted exactly as requested</p>
+                  </div>
+                  
+                  <div className="p-5 space-y-6">
+                    
+                    {/* Formulas */}
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Cost Formulas (FC+VCu)</h3>
+                      <div className="space-y-3">
+                        {analysis.formulas.map(f => (
+                          <div key={f.id} className="flex flex-col">
+                            <span className="text-xs text-slate-500">{f.name} Formula =</span>
+                            <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded inline-block w-fit mt-1 select-all">
+                              {formatCostFormula(f.fc, f.vc)}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex flex-col pt-2 border-t border-slate-100">
+                          <span className="text-xs text-emerald-600 font-semibold">Total of ALL Costs Combined =</span>
+                          <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded inline-block w-fit mt-1 text-lg select-all border border-emerald-200">
+                            {formatCostFormula(analysis.totalFC, analysis.totalVC)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <hr className="border-slate-100" />
+
+                    {/* Scenarios */}
+                    <div className="space-y-4">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Scenario Computations</h3>
+                      
+                      <div className="flex flex-col">
+                        <span className="text-xs text-slate-500 leading-tight">Total Cost to Produce {q1Units !== '' ? Number(q1Units).toLocaleString() : '___'} Bikes =</span>
+                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded inline-block w-fit mt-1 select-all min-h-[28px]">
+                          {ansQ1 !== null ? formatNumberOnly(ansQ1) : '-'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col">
+                        <span className="text-xs text-slate-500 leading-tight">Net Income for {q2Units !== '' ? Number(q2Units).toLocaleString() : '___'} Bikes @ ${q2Price !== '' ? q2Price : '___'} =</span>
+                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded inline-block w-fit mt-1 select-all min-h-[28px]">
+                          {ansQ2 !== null ? formatNumberOnly(ansQ2) : '-'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col">
+                        <span className="text-xs text-slate-500 leading-tight">Sales Price req. for ${q3TargetNetIncome !== '' ? Number(q3TargetNetIncome).toLocaleString() : '___'} Net Income (selling {q3Units !== '' ? Number(q3Units).toLocaleString() : '___'} Bikes) =</span>
+                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-1 rounded inline-block w-fit mt-1 select-all min-h-[28px]">
+                          {ansQ3 !== null ? formatPenny(ansQ3) : '-'}
+                        </span>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+                
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
